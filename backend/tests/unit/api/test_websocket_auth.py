@@ -17,6 +17,20 @@ def test_websocket_connects_in_testing():
         assert data["type"] == "history"
 
 
+def test_websocket_client_close_is_not_an_unretrieved_task(caplog):
+    """Browser tab close must not log asyncio 'Task exception was never retrieved'."""
+    import logging
+
+    with caplog.at_level(logging.ERROR):
+        with client.websocket_connect("/api/v1/websocket") as ws:
+            assert ws.receive_json()["type"] == "hello"
+            assert ws.receive_json()["type"] == "history"
+            ws.close()
+    text = caplog.text
+    assert "Task exception was never retrieved" not in text
+    assert "WebSocketDisconnect" not in text
+
+
 def test_websocket_rejects_without_key_when_required(monkeypatch):
     monkeypatch.setattr(settings, "ARTSA_API_KEY", "ws-test-secret-key-12345")
     monkeypatch.setattr(settings, "ENVIRONMENT", "development")

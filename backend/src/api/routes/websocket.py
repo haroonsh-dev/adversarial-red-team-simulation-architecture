@@ -105,82 +105,95 @@ async def websocket_endpoint(websocket: WebSocket):
         async def receive_loop():
             """Handle client messages: pings (heartbeat) and reconnection requests."""
             nonlocal client_alive, last_client_seen
-            while True:
-                raw = await websocket.receive_text()
-                last_client_seen = time.monotonic()
-                try:
-                    msg = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
+            try:
+                while True:
+                    raw = await websocket.receive_text()
+                    last_client_seen = time.monotonic()
+                    try:
+                        msg = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
 
-                msg_type = msg.get("type", "")
-                if msg_type in {"ping", "pong"}:
-                    if msg_type == "ping":
-                        await websocket.send_text(json.dumps({
-                            "type": "pong",
-                            "timestamp": time.time(),
-                            "seq": msg.get("seq", 0),
-                        }))
-                elif msg_type == "reconnect":
-                    token = msg.get("reconnect_token", "")
-                    from_seq = msg.get("from_seq", 0)
-                    _prune_reconnect_tokens()
-                    entry = _reconnect_store.get(token)
-                    if entry and entry["expires_at"] > time.monotonic():
-                        replay = telemetry_bus.get_history_from(from_seq, limit=200)
-                        await websocket.send_text(json.dumps({
-                            "type": "replay",
-                            "from_seq": from_seq,
-                            "events": replay,
-                            "latest_seq": telemetry_bus.latest_sequence(),
-                        }))
-                    else:
-                        await websocket.send_text(json.dumps({
-                            "type": "error",
-                            "code": "INVALID_RECONNECT_TOKEN",
-                            "message": "Reconnection token expired or invalid",
-                        }))
-                elif msg_type == "subscribe":
-                    pass  # future: per-client event filtering
+                    msg_type = msg.get("type", "")
+                    if msg_type in {"ping", "pong"}:
+                        if msg_type == "ping":
+                            await websocket.send_text(json.dumps({
+                                "type": "pong",
+                                "timestamp": time.time(),
+                                "seq": msg.get("seq", 0),
+                            }))
+                    elif msg_type == "reconnect":
+                        token = msg.get("reconnect_token", "")
+                        from_seq = msg.get("from_seq", 0)
+                        _prune_reconnect_tokens()
+                        entry = _reconnect_store.get(token)
+                        if entry and entry["expires_at"] > time.monotonic():
+                            replay = telemetry_bus.get_history_from(from_seq, limit=200)
+                            await websocket.send_text(json.dumps({
+                                "type": "replay",
+                                "from_seq": from_seq,
+                                "events": replay,
+                                "latest_seq": telemetry_bus.latest_sequence(),
+                            }))
+                        else:
+                            await websocket.send_text(json.dumps({
+                                "type": "error",
+                                "code": "INVALID_RECONNECT_TOKEN",
+                                "message": "Reconnection token expired or invalid",
+                            }))
+                    elif msg_type == "subscribe":
+                        pass  # future: per-client event filtering
+            except WebSocketDisconnect:
+                client_alive = False
 
         async def send_loop():
             """Send telemetry events and server heartbeats."""
             nonlocal last_sequence, client_alive, last_client_seen
 
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
-                    last_sequence += 1
-                    await websocket.send_text(json.dumps({
-                        "type": "telemetry",
-                        "seq": last_sequence,
-                        "event": event,
-                    }))
-                except TimeoutError:
-                    if time.monotonic() - last_client_seen > HEARTBEAT_INTERVAL + HEARTBEAT_TIMEOUT:
-                        logger.warning("WebSocket client heartbeat timeout — disconnecting")
-                        client_alive = False
-                        break
+            try:
+                while True:
                     try:
-                        ping_payload = json.dumps({
-                            "type": "ping",
-                            "timestamp": time.time(),
-                        })
-                        await asyncio.wait_for(
-                            websocket.send_text(ping_payload),
-                            timeout=5.0,
-                        )
-                    except Exception:
-                        client_alive = False
-                        break
+                        event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
+                        last_sequence += 1
+                        await websocket.send_text(json.dumps({
+                            "type": "telemetry",
+                            "seq": last_sequence,
+                            "event": event,
+                        }))
+                    except TimeoutError:
+                        if time.monotonic() - last_client_seen > HEARTBEAT_INTERVAL + HEARTBEAT_TIMEOUT:
+                            logger.warning("WebSocket client heartbeat timeout — disconnecting")
+                            client_alive = False
+                            break
+                        try:
+                            ping_payload = json.dumps({
+                                "type": "ping",
+                                "timestamp": time.time(),
+                            })
+                            await asyncio.wait_for(
+                                websocket.send_text(ping_payload),
+                                timeout=5.0,
+                            )
+                        except Exception:
+                            client_alive = False
+                            break
+            except WebSocketDisconnect:
+                client_alive = False
 
         receive_task = asyncio.create_task(receive_loop())
         send_task = asyncio.create_task(send_loop())
-        _, pending = await asyncio.wait(
+        done, pending = await asyncio.wait(
             {receive_task, send_task}, return_when=asyncio.FIRST_COMPLETED
         )
         for task in pending:
             task.cancel()
+        for task in done:
+            if task.cancelled():
+                continue
+            exc = task.exception()
+            if exc is None or isinstance(exc, WebSocketDisconnect):
+                continue
+            logger.error("WebSocket task error: %s", exc)
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected (clean)")
     except Exception as exc:
