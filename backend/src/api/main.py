@@ -19,7 +19,7 @@ load_dotenv(_REPO_ROOT / ".env", override=False)
 load_dotenv(BACKEND_DIR / ".env", override=False)
 
 # Must run before any LangChain ChatModel is constructed (Lab / Campaigns).
-from src.compat.langchain_globals import patch_langchain_globals  # noqa: E402
+from src.compat.langchain_globals import patch_langchain_globals
 
 patch_langchain_globals()
 
