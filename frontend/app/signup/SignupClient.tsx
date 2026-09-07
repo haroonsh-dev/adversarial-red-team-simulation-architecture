@@ -20,7 +20,7 @@ function SignupFormInner() {
   const setSession = useAuthStore((s) => s.setSession);
 
   const returnTo = searchParams.get("returnTo") || "";
-  const dest = returnTo.startsWith("/") ? returnTo : "/dashboard";
+  const dest = returnTo.startsWith("/") ? returnTo : "/command-center";
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -43,7 +43,7 @@ function SignupFormInner() {
         const open = Boolean(status?.registration_open);
         setRegistrationOpen(open);
         if (!open) {
-          router.replace(authLoginHref({ returnTo: dest !== "/dashboard" ? dest : undefined }));
+          router.replace(authLoginHref({ returnTo: dest !== "/command-center" ? dest : undefined }));
         }
       })
       .catch(() => {
@@ -106,8 +106,8 @@ function SignupFormInner() {
 
   if (registrationOpen === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#a7a7a7]" aria-hidden />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
       </div>
     );
   }
@@ -117,7 +117,7 @@ function SignupFormInner() {
       mode="signup"
       title="Sign up"
       subtitle="Create your ARTSA workspace. The first account becomes administrator."
-      returnTo={dest !== "/dashboard" ? dest : undefined}
+      returnTo={dest !== "/command-center" ? dest : undefined}
     >
       <form onSubmit={(e) => void handleRegister(e)} className="space-y-4" noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -126,7 +126,7 @@ function SignupFormInner() {
               First name
             </label>
             <div className="relative">
-              <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+              <User className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
               <input
                 id="signup-first"
                 className={`${authFieldClass} pl-10`}
@@ -163,7 +163,7 @@ function SignupFormInner() {
             Work email
           </label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+            <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
               id="signup-email"
               type="email"
@@ -186,7 +186,7 @@ function SignupFormInner() {
               Company
             </label>
             <div className="relative">
-              <Building2 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+              <Building2 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
               <input
                 id="signup-company"
                 className={`${authFieldClass} pl-10`}
@@ -205,7 +205,7 @@ function SignupFormInner() {
               Job title
             </label>
             <div className="relative">
-              <Briefcase className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+              <Briefcase className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
               <input
                 id="signup-title"
                 className={`${authFieldClass} pl-10`}
@@ -223,7 +223,7 @@ function SignupFormInner() {
             Password
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
               id="signup-password"
               type="password"
@@ -246,7 +246,7 @@ function SignupFormInner() {
             Confirm password
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
               id="signup-confirm"
               type="password"
@@ -264,7 +264,7 @@ function SignupFormInner() {
 
         {error ? (
           <p
-            className="rounded-[8px] border border-[#313131] bg-[#0a0a0a] px-3 py-2 text-[13px] text-[#a7a7a7]"
+            className="rounded-[8px] border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground"
             role="alert"
           >
             {error}
@@ -273,23 +273,23 @@ function SignupFormInner() {
 
         <button
           type="submit"
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-white text-[14px] font-medium text-[#0a0a0a] transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-button text-[14px] font-semibold tracking-[0.04em] text-button-foreground transition-colors hover:bg-button-hover disabled:opacity-50"
           disabled={loading}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           {loading ? "Signing up…" : "Sign up"}
         </button>
 
-        <p className="text-center text-[12px] text-[#7c7c7c]">
+        <p className="text-center text-[12px] text-muted-foreground">
           By signing up you agree to use ARTSA for authorized security testing only.
         </p>
       </form>
 
-      <p className="mt-6 text-center text-[14px] text-[#a7a7a7]">
+      <p className="mt-6 text-center text-[14px] text-muted-foreground">
         Already have an account?{" "}
         <Link
-          href={authLoginHref({ returnTo: dest !== "/dashboard" ? dest : undefined })}
-          className="font-medium text-white hover:text-[#6798ff]"
+          href={authLoginHref({ returnTo: dest !== "/command-center" ? dest : undefined })}
+          className="font-medium text-foreground hover:text-[#67b3ef]"
         >
           Sign in
         </Link>
@@ -302,8 +302,8 @@ export default function SignupClient() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-          <Loader2 className="h-6 w-6 animate-spin text-[#a7a7a7]" aria-hidden />
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
         </div>
       }
     >

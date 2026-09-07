@@ -132,6 +132,52 @@ class CustomIntegrationORM(Base):
     tenant_id: Mapped[str] = mapped_column(String(255), default="default_tenant", index=True)
 
 
+class TargetORM(Base):
+    """A registered AI system under test.
+
+    A target is the *stable identity* a campaign runs against. Without it a
+    campaign's target is only an ad-hoc request body, so results from two runs
+    cannot be attributed to the same system — which is what regression and
+    benchmark comparison both require. ``version`` is the operator-supplied
+    label those comparisons key on.
+
+    ``authorized`` gates active probing: ARTSA must never send traffic at a
+    system the operator has not explicitly cleared for testing.
+    """
+
+    __tablename__ = "targets"
+
+    # Target names are unique per tenant, matching custom_integrations (4.7).
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_targets_tenant_name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str] = mapped_column(String(255), default="default_org", index=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    # llm | chatbot | rag | agent | multi_agent | mcp_agent | api_app | workflow
+    kind: Mapped[str] = mapped_column(String(32), default="llm")
+    version: Mapped[str] = mapped_column(String(64), default="v1")
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    provider: Mapped[str] = mapped_column(String(64), default="")
+    model: Mapped[str] = mapped_column(String(128), default="")
+    base_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Explicit operator authorization — required before any active probe.
+    authorized: Mapped[bool] = mapped_column(Boolean, default=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # Latest discovery snapshot (capabilities, trust boundaries, attack surface).
+    surface: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    discovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
 class ToolCallEventORM(Base):
     __tablename__ = "tool_call_events"
 
@@ -298,3 +344,27 @@ class PartnerApiKeyORM(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class HmacHandoffAuditORM(Base):
+    """Persisted HMAC handoff verification evidence (no payload body)."""
+
+    __tablename__ = "hmac_handoff_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    sender: Mapped[str] = mapped_column(String(64), index=True)
+    receiver: Mapped[str] = mapped_column(String(64), index=True)
+    campaign_id: Mapped[str] = mapped_column(String(64), index=True)
+    round_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    nonce_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    event_id: Mapped[str] = mapped_column(String(64), index=True, default="")
+    body_sha256: Mapped[str] = mapped_column(String(64))
+    hmac_state: Mapped[str] = mapped_column(String(16))
+    signature_status: Mapped[str] = mapped_column(String(16))
+    verification_result: Mapped[str] = mapped_column(String(64))
+    replay_detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    containment_result: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    tenant_id: Mapped[str] = mapped_column(String(255), default="default_org", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )

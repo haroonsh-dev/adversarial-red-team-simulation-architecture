@@ -48,6 +48,8 @@ def test_ready_endpoint_ok_in_testing() -> None:
         # Ready endpoint is excluded from envelope wrapping
         assert body["status"] == "ready"
         assert "checks" in body
+        for key in ("database", "redis", "embeddings", "signing_key"):
+            assert key in body["checks"]
 
 
 def test_ingest_returns_enforcement_fields(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -76,14 +78,11 @@ def test_manual_quarantine_blocks_further_ingest(monkeypatch: pytest.MonkeyPatch
         assert _unwrap(action)["status"] == "QUARANTINED"
 
         blocked = client.post("/api/v1/ingest", json=_event(sid, tool="execute_command"))
-        assert blocked.status_code == 403
-        block_body = blocked.json()
-        # Error responses may be wrapped in the error envelope — handle both shapes
-        detail = block_body.get("detail", block_body.get("error", {}))
-        if isinstance(detail, dict):
-            assert "contained" in str(detail).lower() or detail.get("session_status") == "QUARANTINED"
-        else:
-            assert "contained" in str(detail).lower()
+        # Contained sessions are rejected without 403 so Harness clients stay connected.
+        assert blocked.status_code == 200
+        data = _unwrap(blocked)
+        assert data.get("blocked") is True or data.get("advisory_blocked") is True
+        assert str(data.get("session_status") or "").upper() == "QUARANTINED"
 
 
 def test_kill_action_marks_breached() -> None:

@@ -130,6 +130,9 @@ class TestRoundResult:
         assert rr.response is not None
         assert rr.score is not None
         assert rr.timestamp is not None
+        assert rr.hop_latency_ms.red_team is None
+        assert rr.hop_latency_ms.target is None
+        assert rr.hop_latency_ms.judge is None
 
 
 # ── CampaignConfig ─────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ const ADMIN_IDENTITY = {
     can_manage_policies: true,
     can_manage_providers: true,
     can_manage_integrations: true,
+    can_manage_targets: true,
     read_only: false,
   },
   auth_required: false,

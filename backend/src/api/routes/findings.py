@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from src.api.dependencies import get_current_tenant
+from src.core.asi import ASI_BY_CODE, classify_asi
+from src.core.models.hops import HMAC_HANDOFF_UNWIRED, HmacState
 from src.data.campaign_job_store import campaign_job_store
-from src.data.findings_registry import all_records, get_record, set_promoted
+from src.data.findings_registry import all_records, set_promoted
 from src.data.policy_version_store import current_version, snapshot_rules
 from src.data.results_store import ResultsStore
 
@@ -20,35 +22,117 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent.parent
 RESULTS_DIR = BACKEND_DIR / "data" / "results"
 POLICY_PATH = BACKEND_DIR / "configs" / "org_policies" / "default.yaml"
 
-ASI_BY_CATEGORY: dict[str, tuple[str, str]] = {
-    "PROMPT_INJECTION": ("ASI01", "Agent Goal Hijack"),
-    "DPI": ("ASI01", "Agent Goal Hijack"),
-    "JAILBREAK": ("ASI10", "Rogue Agents"),
-    "JBK": ("ASI10", "Rogue Agents"),
-    "SYSTEM_PROMPT_EXTRACTION": ("ASI10", "Rogue Agents"),
-    "SPE": ("ASI10", "Rogue Agents"),
-    "DATA_EXTRACTION": ("ASI06", "Memory & Context Poisoning"),
-    "DEX": ("ASI06", "Memory & Context Poisoning"),
-    "TPA": ("ASI02", "Tool Misuse & Exploitation"),
-}
+def _asi_for_category(category: str, *, detectors: list[str] | None = None) -> tuple[str | None, str | None]:
+    code, _status = classify_asi(detectors=detectors, attack_category=category or None)
+    if not code:
+        return None, None
+    return code, ASI_BY_CODE[code].label
 
 
-def _asi_for_category(category: str) -> tuple[str | None, str | None]:
-    key = category.upper().replace(" ", "_")
-    return ASI_BY_CATEGORY.get(key, (None, None))
+def _custody_hop(
+    *,
+    agent: str,
+    label: str,
+    action: str,
+    executed: bool,
+    hmac_verified: bool | None = None,
+    hmac_state: str | None = None,
+) -> dict[str, Any]:
+    """One custody row. Unwired agents never claim HMAC."""
+    return {
+        "agent": agent,
+        "label": label,
+        "action": action,
+        "hmac_verified": hmac_verified,
+        "hmac_state": hmac_state or HMAC_HANDOFF_UNWIRED.value,
+        "executed": executed,
+    }
 
 
-def _default_custody(*, verdict: str, blocked: bool) -> list[dict[str, Any]]:
-    defender_action = "Awaiting playbook promotion"
-    if blocked:
-        defender_action = "Containment blocked the attack path"
+def _default_custody(
+    *,
+    verdict: str,
+    blocked: bool,
+    from_campaign: bool = True,
+    hmac_ok: bool | None = None,
+) -> list[dict[str, Any]]:
+    """Six-agent custody trail. Only campaign Red Team / Target / Judge ran.
+
+    Wired campaign hops report HMAC verify. Research / Curator / Defender stay unwired.
+    """
+    del blocked
+    ran = from_campaign
+    wired_verified = True if ran and hmac_ok is not False else (False if hmac_ok is False else None)
+    if ran and hmac_ok is None:
+        # New campaigns always sign; treat missing field on fresh findings as verified
+        # only when hmac_ok is explicitly passed. Default None = not yet recorded.
+        wired_state = HMAC_HANDOFF_UNWIRED.value
+        wired_verified = None
+        wired_action_hmac = "inter-agent HMAC not recorded on this round"
+    elif ran and wired_verified is True:
+        wired_state = HmacState.OK.value
+        wired_action_hmac = "inter-agent HMAC verified"
+    elif ran:
+        wired_state = HmacState.FAIL.value
+        wired_action_hmac = "inter-agent HMAC FAILED"
+    else:
+        wired_state = HMAC_HANDOFF_UNWIRED.value
+        wired_action_hmac = "NOT_WIRED — this finding is not from a campaign hop"
     return [
-        {"agent": "research", "label": "Research", "action": "Pattern mapped to ASI taxonomy", "hmac_verified": None},
-        {"agent": "curator", "label": "Curator", "action": "Attack template prepared", "hmac_verified": None},
-        {"agent": "redteam", "label": "Red Team", "action": "Multi-turn attack executed", "hmac_verified": True},
-        {"agent": "target", "label": "Target", "action": "Agent response captured", "hmac_verified": True},
-        {"agent": "judge", "label": "Judge", "action": f"Verdict · {verdict}", "hmac_verified": True},
-        {"agent": "defender", "label": "Defender", "action": defender_action, "hmac_verified": None},
+        _custody_hop(
+            agent="research",
+            label="Research",
+            action="NOT_WIRED — Research is not executed in the campaign loop",
+            executed=False,
+        ),
+        _custody_hop(
+            agent="curator",
+            label="Curator",
+            action="NOT_WIRED — Curator is not executed in the campaign loop",
+            executed=False,
+        ),
+        _custody_hop(
+            agent="redteam",
+            label="Red Team",
+            action=(
+                f"Attack payload generated ({wired_action_hmac})"
+                if ran
+                else wired_action_hmac
+            ),
+            executed=ran,
+            hmac_verified=wired_verified if ran else None,
+            hmac_state=wired_state if ran else HMAC_HANDOFF_UNWIRED.value,
+        ),
+        _custody_hop(
+            agent="target",
+            label="Target",
+            action=(
+                f"Agent response captured ({wired_action_hmac})"
+                if ran
+                else wired_action_hmac
+            ),
+            executed=ran,
+            hmac_verified=wired_verified if ran else None,
+            hmac_state=wired_state if ran else HMAC_HANDOFF_UNWIRED.value,
+        ),
+        _custody_hop(
+            agent="judge",
+            label="Judge",
+            action=(
+                f"Verdict · {verdict} ({wired_action_hmac})"
+                if ran
+                else wired_action_hmac
+            ),
+            executed=ran,
+            hmac_verified=wired_verified if ran else None,
+            hmac_state=wired_state if ran else HMAC_HANDOFF_UNWIRED.value,
+        ),
+        _custody_hop(
+            agent="defender",
+            label="Defender",
+            action="NOT_WIRED — Defender is not executed in the campaign loop",
+            executed=False,
+        ),
     ]
 
 
@@ -59,12 +143,12 @@ def _severity_from_score(score: dict[str, Any]) -> str:
     return "MEDIUM"
 
 
-def _findings_from_campaigns() -> list[dict[str, Any]]:
+def _findings_from_campaigns(tenant_id: str | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     registry = all_records()
     store = ResultsStore(str(RESULTS_DIR))
 
-    for job in campaign_job_store.list_jobs(limit=100):
+    for job in campaign_job_store.list_jobs(limit=100, tenant_id=tenant_id):
         cid = job["id"]
         rounds = store.load_rounds(cid)
         if not rounds and job.get("summary_json"):
@@ -99,9 +183,18 @@ def _round_to_finding(
     asi_code, asi_label = _asi_for_category(category)
     verdict = str(score.get("verdict", "UNKNOWN"))
     blocked = bool(response.get("blocked"))
+    handoffs = raw.get("hmac_handoffs") or []
+    hmac_ok = None
+    if isinstance(handoffs, list) and handoffs:
+        hmac_ok = all(bool(h.get("hmac_verified")) for h in handoffs if isinstance(h, dict))
     status = "validated"
     if registry and registry.get("status") == "promoted":
         status = "promoted"
+    hmac_handoff = (
+        HmacState.OK.value if hmac_ok is True else (
+            HmacState.FAIL.value if hmac_ok is False else HmacState.UNWIRED.value
+        )
+    )
     return {
         "id": finding_id,
         "title": str(attack.get("name", "Campaign finding")),
@@ -116,16 +209,23 @@ def _round_to_finding(
         "verdict": verdict,
         "attack_prompt": str(attack.get("prompt", ""))[:500],
         "reasoning": str(score.get("reasoning", ""))[:1000],
-        "custody_chain": _default_custody(verdict=verdict, blocked=blocked),
+        "custody_chain": _default_custody(verdict=verdict, blocked=blocked, hmac_ok=hmac_ok),
+        "hmac_handoff": hmac_handoff,
         "playbook_version": registry.get("playbook_version") if registry else None,
         "promoted_rule_name": registry.get("rule_name") if registry else None,
     }
 
 
-def _findings_from_telemetry(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _findings_from_telemetry(events: list[dict[str, Any]], tenant_id: str | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     registry = all_records()
     for idx, evt in enumerate(reversed(events[-40:])):
+        if tenant_id:
+            ev_tenant = evt.get("tenant_id")
+            if ev_tenant is not None and str(ev_tenant) != tenant_id:
+                continue
+            if ev_tenant is None and tenant_id not in {"default_org", "default_tenant"}:
+                continue
         score = float(evt.get("risk_score") or 0)
         sev = str(evt.get("severity", "")).upper()
         if score < 50 and sev not in ("HIGH", "CRITICAL"):
@@ -135,14 +235,17 @@ def _findings_from_telemetry(events: list[dict[str, Any]]) -> list[dict[str, Any
         reg = registry.get(finding_id)
         status = "promoted" if reg and reg.get("status") == "promoted" else "new"
         tool = str(evt.get("tool_name") or "event")
+        raw_detectors = evt.get("detectors")
+        detectors = [str(d) for d in raw_detectors] if isinstance(raw_detectors, list) else []
+        asi_code, asi_label = _asi_for_category("", detectors=detectors)
         rows.append(
             {
                 "id": finding_id,
                 "title": f"{tool} · {session[:8]}",
                 "severity": sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "HIGH",
                 "category": tool,
-                "asi_code": "ASI01",
-                "asi_label": "Agent Goal Hijack",
+                "asi_code": asi_code,
+                "asi_label": asi_label,
                 "status": status,
                 "source": "telemetry",
                 "source_ref": session,
@@ -153,7 +256,9 @@ def _findings_from_telemetry(events: list[dict[str, Any]]) -> list[dict[str, Any
                 "custody_chain": _default_custody(
                     verdict=str(evt.get("verdict") or "FLAGGED"),
                     blocked="BLOCK" in str(evt.get("verdict", "")).upper(),
+                    from_campaign=False,
                 ),
+                "hmac_handoff": HmacState.UNWIRED.value,
                 "playbook_version": reg.get("playbook_version") if reg else None,
                 "promoted_rule_name": reg.get("rule_name") if reg else None,
             }
@@ -171,11 +276,11 @@ class PromoteFindingRequest(BaseModel):
 
 
 @router.get("/findings")
-async def list_findings() -> dict[str, Any]:
+async def list_findings(tenant_id: str = Depends(get_current_tenant)) -> dict[str, Any]:
     from src.services.telemetry_bus import telemetry_bus
 
-    campaign_rows = _findings_from_campaigns()
-    telemetry_rows = _findings_from_telemetry(telemetry_bus.get_history(limit=80))
+    campaign_rows = _findings_from_campaigns(tenant_id)
+    telemetry_rows = _findings_from_telemetry(telemetry_bus.get_history(limit=80), tenant_id)
     merged = {r["id"]: r for r in campaign_rows + telemetry_rows}
     findings = sorted(
         merged.values(),
@@ -190,8 +295,10 @@ async def list_findings() -> dict[str, Any]:
 
 
 @router.get("/findings/{finding_id}")
-async def get_finding(finding_id: str) -> dict[str, Any]:
-    data = await list_findings()
+async def get_finding(
+    finding_id: str, tenant_id: str = Depends(get_current_tenant)
+) -> dict[str, Any]:
+    data = await list_findings(tenant_id)
     for row in data["findings"]:
         if row["id"] == finding_id:
             return row
@@ -199,11 +306,15 @@ async def get_finding(finding_id: str) -> dict[str, Any]:
 
 
 @router.post("/findings/{finding_id}/promote")
-async def promote_finding(finding_id: str, payload: PromoteFindingRequest) -> dict[str, Any]:
+async def promote_finding(
+    finding_id: str,
+    payload: PromoteFindingRequest,
+    tenant_id: str = Depends(get_current_tenant),
+) -> dict[str, Any]:
     """Deploy a suggested rule and mark the finding promoted with a playbook version bump."""
     import yaml
 
-    finding = await get_finding(finding_id)
+    finding = await get_finding(finding_id, tenant_id)
     if not POLICY_PATH.exists():
         rules: list[dict[str, Any]] = []
     else:

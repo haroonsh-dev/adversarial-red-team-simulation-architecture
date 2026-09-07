@@ -35,6 +35,11 @@ _ROLE_PERMISSIONS: dict[Role, frozenset[str]] = {
             "POST:/situations",
             "POST:/campaigns",
             "POST:/benchmark",
+            # Registering a target and probing it are red-team operations:
+            # discovery sends live traffic at the target.
+            "POST:/targets",
+            "PATCH:/targets",
+            "DELETE:/targets",
             "PATCH:/auth",
             "POST:/auth",
         }
@@ -117,5 +122,6 @@ def role_capabilities(role: Role) -> dict[str, bool]:
         "can_manage_policies": is_allowed(role, "PUT", "/api/v1/policies"),
         "can_manage_providers": is_allowed(role, "POST", "/api/v1/providers"),
         "can_manage_integrations": is_allowed(role, "POST", "/api/v1/integrations"),
+        "can_manage_targets": is_allowed(role, "POST", "/api/v1/targets"),
         "read_only": role == Role.READONLY,
     }

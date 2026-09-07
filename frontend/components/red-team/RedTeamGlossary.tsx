@@ -1,30 +1,95 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TERMS = [
   {
-    term: "Try once",
-    def: "Send one test message and see if ARTSA blocks or allows it.",
+    term: "Check",
+    def: "Score one attack message now — without starting a full campaign.",
     href: "/red-team/lab",
   },
   {
-    term: "Full test",
-    def: "Run many attacks in a row against your AI — like a practice drill.",
+    term: "Run",
+    def: "Launch a campaign against your target and watch rounds live.",
     href: "/red-team/campaigns/new",
   },
   {
-    term: "Watch",
-    def: "See live results as tests run — what was blocked and what got through.",
+    term: "Activity",
+    def: "Live agent traffic — risk, tools, and verdicts as they happen.",
     href: "/red-team/monitor",
   },
   {
-    term: "Results",
-    def: "A summary of how your AI did across all tests.",
+    term: "Outcomes",
+    def: "Aggregated results across campaigns — detect rates and gaps.",
     href: "/red-team/matrix",
   },
 ] as const;
 
-/** Plain-language vocabulary for non-technical users. */
+/** Glossary behind a ? control — not inline on the page. */
+export function RedTeamGlossaryHelp({ className }: { className?: string }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className={cn("relative", className)}>
+      <button
+        type="button"
+        aria-label="Glossary"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      >
+        <HelpCircle className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Glossary"
+          className="absolute right-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-border bg-card p-3 shadow-lg"
+        >
+          <p className="text-[11px] font-medium text-muted-foreground">Glossary</p>
+          <dl className="mt-2 grid gap-2">
+            {TERMS.map((t) => (
+              <div key={t.term}>
+                <dt>
+                  <Link
+                    href={t.href}
+                    className="text-[12px] font-medium text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
+                    {t.term}
+                  </Link>
+                </dt>
+                <dd className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t.def}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Shared vocabulary so Lab / Monitor / Campaigns use the same words. */
 export function RedTeamGlossary({ className }: { className?: string }) {
   return (
     <div
@@ -33,7 +98,7 @@ export function RedTeamGlossary({ className }: { className?: string }) {
         className
       )}
     >
-      <p className="text-[11px] font-medium text-muted-foreground">What these words mean</p>
+      <p className="text-[11px] font-medium text-muted-foreground">Glossary</p>
       <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {TERMS.map((t) => (
           <div key={t.term} className="min-w-0">
@@ -77,43 +142,43 @@ export function RedTeamSimpleSteps({
   );
 }
 
-/** Friendly names for attack types (non-technical). */
+/** Friendly names for attack types (kept for plain technique pickers). */
 export const FRIENDLY_TECHNIQUE: Record<string, { label: string; why: string }> = {
   "Prompt Injection": {
-    label: "Trick the instructions",
+    label: "Prompt Injection",
     why: "Can someone make your AI ignore its rules?",
   },
   "Tool Abuse": {
-    label: "Misuse tools",
+    label: "Tool Abuse",
     why: "Can someone force your AI to use tools it shouldn’t?",
   },
   Exfiltration: {
-    label: "Steal private data",
+    label: "Exfiltration",
     why: "Can someone pull secrets or customer info out?",
   },
   "Goal Drift": {
-    label: "Change the goal",
+    label: "Goal Drift",
     why: "Can someone push your AI off its real job?",
   },
   "Memory Attack": {
-    label: "Poison memory",
+    label: "Memory Attack",
     why: "Can someone plant bad info that sticks?",
   },
   Privilege: {
-    label: "Gain extra access",
+    label: "Privilege",
     why: "Can someone get powers they should not have?",
   },
   "Context Attack": {
-    label: "Confuse context",
+    label: "Context Attack",
     why: "Can someone hide attacks inside other content?",
   },
 };
 
 export const FRIENDLY_STRATEGY: Record<string, string> = {
-  Direct: "Straightforward",
-  Obfuscated: "Disguised",
-  "Multi-hop": "Step-by-step",
-  "Social engineering": "Social pressure",
+  Direct: "Direct",
+  Obfuscated: "Obfuscated",
+  "Multi-hop": "Multi-hop",
+  "Social engineering": "Social engineering",
 };
 
 export function friendlyStatus(status: string): string {

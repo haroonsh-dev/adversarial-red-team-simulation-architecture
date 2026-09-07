@@ -126,7 +126,9 @@ function CampaignRow({ campaign }: { campaign: CampaignListItem }) {
 
         <div className="flex flex-wrap gap-1.5 sm:justify-end">
           <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" asChild>
-            <Link href={`/red-team/monitor/${campaign.id}?follow=1`}>Watch</Link>
+            <Link href={`/red-team/monitor/${campaign.id}?follow=1`}>
+              {bucket === "running" ? "Watch live" : "Open run"}
+            </Link>
           </Button>
         </div>
       </div>
@@ -161,12 +163,12 @@ function RedTeamCampaignsInner() {
     const failed = campaigns.filter((c) => statusBucket(c.status) === "failed").length;
     let finding =
       campaigns.length === 0
-        ? "No tests yet. Start a quick test or build a custom one."
+        ? "No campaigns yet. Launch a quick scan or open the builder."
         : overview.runningCount > 0
-          ? `${overview.runningCount} running now · ${overview.completedCount} finished. Open Watch to follow live.`
-          : `${campaigns.length} test${campaigns.length === 1 ? "" : "s"} on record · average score ${meanRisk ?? "—"}.`;
+          ? `${overview.runningCount} running · ${overview.completedCount} complete. Watch live to follow rounds.`
+          : `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} · mean risk ${meanRisk ?? "—"}.`;
     if (overview.critical > 0) {
-      finding += ` ${overview.critical} high-risk result${overview.critical === 1 ? "" : "s"} need a closer look.`;
+      finding += ` ${overview.critical} critical result${overview.critical === 1 ? "" : "s"} need review.`;
     }
     const riskSpark = overview.campaignRisk
       .slice()
@@ -217,23 +219,37 @@ function RedTeamCampaignsInner() {
       return b === "running" ? 0 : b === "failed" ? 1 : b === "completed" ? 2 : 3;
     };
 
+    // Ongoing live always surfaces first — risk is often null while a run is mid-flight.
     rows.sort((a, b) => {
+      const liveFirst = rank(a.status) - rank(b.status);
+      if (liveFirst !== 0) return liveFirst;
       if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "status") {
-        const d = rank(a.status) - rank(b.status);
-        return d !== 0 ? d : b.name.localeCompare(a.name);
-      }
+      if (sort === "status") return a.name.localeCompare(b.name);
       if (sort === "progress") return progressOf(b) - progressOf(a);
-      // risk default
-      return riskOf(b) - riskOf(a) || rank(a.status) - rank(b.status);
+      return riskOf(b) - riskOf(a) || a.name.localeCompare(b.name);
     });
     return rows;
   }, [campaigns, filter, query, sort]);
 
+  const ongoing = useMemo(
+    () => campaigns.filter((c) => statusBucket(c.status) === "running"),
+    [campaigns]
+  );
+
+  // When a run first appears, switch to Running so ongoing live is obvious.
+  const [autoFocusedLive, setAutoFocusedLive] = useState(false);
+  useEffect(() => {
+    if (ongoing.length > 0 && !autoFocusedLive) {
+      setFilter("running");
+      setAutoFocusedLive(true);
+    }
+    if (ongoing.length === 0) setAutoFocusedLive(false);
+  }, [ongoing.length, autoFocusedLive]);
+
   if (!authLoading && !capabilities.can_run_campaigns) {
     return (
       <div className="rounded-md border border-border px-4 py-8 text-center text-[13px] text-muted-foreground">
-        You don’t have permission to run safety tests. Ask an admin for access.
+        You don’t have permission to run campaigns. Ask an admin for access.
       </div>
     );
   }
@@ -242,9 +258,8 @@ function RedTeamCampaignsInner() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 max-w-xl">
-          <h2 className="text-[17px] font-medium tracking-tight text-foreground">Your safety tests</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Each row is a full test against your AI. Start a quick one, or build a custom test.
+            Live list from ARTSA — not demo data. Updates as runs finish or fail.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -252,22 +267,76 @@ function RedTeamCampaignsInner() {
             Refresh
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/red-team/lab">Try one message</Link>
+            <Link href="/red-team/lab">Attack Lab</Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/red-team/campaigns/new">Custom test</Link>
+            <Link href="/red-team/campaigns/new">Builder</Link>
           </Button>
           <Button size="sm" onClick={() => setWizardOpen(true)}>
-            Quick test
+            Quick scan
           </Button>
         </div>
       </div>
 
+      {ongoing.length === 0 ? (
+        <div className="rounded-md border border-border bg-muted/20 px-3 py-2.5 text-[13px]">
+          <p className="font-medium text-foreground">No ongoing live runs</p>
+          <p className="mt-1 text-muted-foreground">
+            Orbit / table below are finished history. Start a run — it will jump to the top here,
+            on Detections, and under Command Center.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button size="sm" asChild>
+              <Link href="/red-team/lab">Start Attack Lab</Link>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setWizardOpen(true)}>
+              Quick scan
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/red-team/monitor">Open Detections</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-3 py-3 text-[13px]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium text-emerald-400">
+              Ongoing live · {ongoing.length} run{ongoing.length === 1 ? "" : "s"} · refresh every 5s
+            </p>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" asChild>
+              <Link href="/red-team/monitor">All on Detections</Link>
+            </Button>
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {ongoing.map((c) => {
+              const total = Math.max(1, Number(c.total_rounds || 1));
+              const done = Number(c.rounds_completed || 0);
+              return (
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-500/20 bg-background/40 px-2.5 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{c.name}</p>
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      {done}/{c.total_rounds} rounds · {c.provider}/{c.model}
+                    </p>
+                  </div>
+                  <Button size="sm" className="h-7 shrink-0 text-[11px]" asChild>
+                    <Link href={`/red-team/monitor/${c.id}?follow=1`}>Watch live</Link>
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <RedTeamSimpleSteps
         steps={[
-          { n: 1, title: "Start a test", body: "Quick test for a short drill, or custom for more control." },
-          { n: 2, title: "Watch results", body: "See what was blocked and what got through as it runs." },
-          { n: 3, title: "Review", body: "Come back here anytime to reopen a finished test." },
+          { n: 1, title: "Launch", body: "Quick scan for a short run, or builder for more control." },
+          { n: 2, title: "Watch", body: "While a run is live, open Detections for that campaign." },
+          { n: 3, title: "Review", body: "Reopen finished campaigns anytime from this list." },
         ]}
       />
 

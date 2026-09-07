@@ -30,18 +30,18 @@ const NODE_X: Record<AttackFlowHopId, number> = {
 
 const STROKE: Record<AttackFlowStatus, string> = {
   pending: "#454545",
-  active: "#6798ff",
+  active: "#67b3ef",
   done: "#4ade80",
   blocked: "#fbbf24",
   breached: "#f87171",
 };
 
 const FILL: Record<AttackFlowStatus, string> = {
-  pending: "#0a0a0a",
-  active: "#1a1f2e",
-  done: "#0f1a12",
-  blocked: "#1a1608",
-  breached: "#1a0c0c",
+  pending: "hsl(var(--background))",
+  active: "hsl(var(--brand-subtle))",
+  done: "hsl(var(--status-success-subtle))",
+  blocked: "hsl(var(--status-warning-subtle))",
+  breached: "hsl(var(--status-error-subtle))",
 };
 
 interface RedTeamAttackFlowGraphProps {
@@ -179,21 +179,21 @@ export function RedTeamAttackFlowGraph({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-[#313131] bg-[#0a0a0a]",
+        "overflow-hidden rounded-xl border border-border bg-background",
         className
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#313131] px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
             Attack flow
           </p>
           {isRunning ? <LiveIndicator connected label="Live" className="meta-badge" /> : null}
-          <span className="rounded border border-[#313131] px-1.5 py-0.5 font-mono text-[9px] text-[#7c7c7c]">
+          <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
             {model.sourceLabel}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] text-[#7c7c7c]">
+        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] text-muted-foreground">
           {targetLabel ? <span className="truncate max-w-[160px]">{targetLabel}</span> : null}
           {typeof progressPct === "number" && isRunning ? (
             <span>{progressPct}%</span>
@@ -260,9 +260,9 @@ export function RedTeamAttackFlowGraph({
         </svg>
       </div>
 
-      <div className="flex flex-wrap gap-3 border-t border-[#313131] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.06em] text-[#454545]">
+      <div className="flex flex-wrap gap-3 border-t border-border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.06em] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#6798ff]" /> Active
+          <span className="h-1.5 w-1.5 rounded-full bg-[#67b3ef]" /> Active
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" /> Done
@@ -274,7 +274,7 @@ export function RedTeamAttackFlowGraph({
           <span className="h-1.5 w-1.5 rounded-full bg-[#f87171]" /> Breached
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#454545]" /> Pending
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> Pending
         </span>
       </div>
     </div>

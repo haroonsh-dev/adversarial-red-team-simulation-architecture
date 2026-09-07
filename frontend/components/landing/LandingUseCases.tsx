@@ -29,7 +29,7 @@ const CASES = [
 
 export function LandingUseCases() {
   return (
-    <section id="use-cases" className="lp-section border-t border-[var(--color-steel-border)] bg-[var(--color-deep-coal)]">
+    <section id="use-cases" className="lp-section lp-section--cloud scroll-mt-24">
       <div className="lp-shell">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -37,8 +37,10 @@ export function LandingUseCases() {
           viewport={{ once: true }}
           transition={{ duration: 0.45, ease: easeOut }}
         >
-          <p className="lp-eyebrow">Use cases</p>
-          <h2 className="lp-heading mt-6 max-w-2xl">Built for teams shipping agents now</h2>
+          <p className="lp-eyebrow !text-[#285cdd]">Use cases</p>
+          <h2 className="lp-heading mt-6 max-w-2xl">
+            Targeted runtime control for the agents you already ship
+          </h2>
         </motion.div>
 
         <motion.div
@@ -58,11 +60,11 @@ export function LandingUseCases() {
                 className="lp-card p-6"
               >
                 <Icon
-                  className="h-4 w-4 text-[var(--color-blue-cornflower)]"
+                  className="h-4 w-4 text-[#285cdd]"
                   strokeWidth={1.75}
                   aria-hidden
                 />
-                <h3 className="mt-4 text-[16px] font-medium tracking-[-0.19px] text-[var(--color-snow)]">
+                <h3 className="mt-4 text-[18px] font-medium tracking-tight text-[var(--color-obsidian)]">
                   {c.title}
                 </h3>
                 <p className="lp-body-sm mt-2">{c.body}</p>

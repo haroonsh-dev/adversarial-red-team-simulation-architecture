@@ -43,11 +43,11 @@ export function RedTeamServiceReady({ className }: { className?: string }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground">Setup checklist</p>
+          <p className="text-[11px] font-medium text-muted-foreground">Service readiness</p>
           <p className="mt-1 text-[14px] leading-relaxed text-foreground">{ready.summary}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            {ready.readyCount} of {ready.total} ready
-            {ready.shareReady ? " · good to go" : ready.canRun ? " · can start testing" : " · needs setup"}
+            {ready.readyCount}/{ready.total} checks ·{" "}
+            {ready.shareReady ? "share-ready" : ready.canRun ? "run-ready" : "blocked"}
           </p>
         </div>
         {!ready.canRun ? (
@@ -58,7 +58,7 @@ export function RedTeamServiceReady({ className }: { className?: string }) {
           </Button>
         ) : !ready.shareReady ? (
           <Button size="sm" asChild>
-            <Link href="/red-team/lab">Try once</Link>
+            <Link href="/red-team/lab">Run a check</Link>
           </Button>
         ) : (
           <Button size="sm" variant="outline" asChild>

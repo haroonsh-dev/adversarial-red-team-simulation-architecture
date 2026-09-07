@@ -1,15 +1,11 @@
 import {
   LayoutDashboard,
-  Activity,
   Network,
-  Swords,
-  Database,
   FileText,
   Users,
   Shield,
   ShieldAlert,
   Crosshair,
-  Rocket,
   Settings2,
   BarChart3,
   GitBranch,
@@ -18,6 +14,12 @@ import {
   FlaskConical,
   Radio,
   Waypoints,
+  Bot,
+  Plug,
+  KeyRound,
+  Cpu,
+  Target,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,15 +45,14 @@ export function isNavHrefActive(pathname: string, href: string, exact?: boolean)
   if (pathname === pathOnly) return true;
   if (exact) return false;
 
-  // Exact-only hubs that have sibling child routes under the same prefix.
   if (
-    pathOnly === "/dashboard" ||
+    pathOnly === "/command-center" ||
     pathOnly === "/get-started" ||
+    pathOnly === "/settings" ||
     pathOnly === "/red-team" ||
     pathOnly === "/campaigns" ||
     pathOnly === "/red-team/monitor"
   ) {
-    // Live Monitor owns campaign theaters (/monitor/:id) but not AI Activity (/monitor/live).
     if (pathOnly === "/red-team/monitor") {
       return (
         pathname.startsWith("/red-team/monitor/") &&
@@ -92,88 +93,115 @@ export function filterNavItemsByCapability(
 
 export const navSections: NavSection[] = [
   {
-    label: "Get Started",
-    items: [{ name: "Get Started", href: "/get-started", icon: Rocket }],
-  },
-  {
-    label: "Protect",
+    label: "",
     items: [
-      { name: "Command Center", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Agent Pipeline", href: "/pipeline", icon: GitBranch },
-      { name: "Analytics", href: "/analytics", icon: BarChart3 },
-      { name: "Logs", href: "/logs", icon: ScrollText },
-      { name: "Topology", href: "/dashboard/topology", icon: Network },
+      {
+        name: "Command Center",
+        href: "/command-center",
+        icon: LayoutDashboard,
+        exact: true,
+      },
     ],
   },
   {
-    label: "Test",
+    label: "Discover",
+    items: [
+      { name: "Targets", href: "/targets", icon: Target, exact: true },
+      { name: "AI Assets", href: "/pipeline", icon: GitBranch },
+      { name: "Agents", href: "/mission-graph", icon: Bot },
+      { name: "Connections", href: "/command-center/topology", icon: Network },
+    ],
+  },
+  {
+    label: "Assess",
+    items: [
+      { name: "Risk", href: "/risks", icon: ShieldAlert },
+      { name: "Attack Surface", href: "/red-team/surface", icon: Target },
+      {
+        name: "Policies",
+        href: "/admin/policies",
+        icon: Shield,
+        capability: "can_manage_policies",
+      },
+    ],
+  },
+  {
+    label: "Red Team",
     items: [
       {
-        name: "Red Team",
-        href: "/red-team",
-        icon: Swords,
+        name: "Attack Lab",
+        href: "/red-team/lab",
+        icon: Crosshair,
         capability: "can_run_campaigns",
-        children: [
-          {
-            name: "Try a message",
-            href: "/red-team/lab",
-            icon: Crosshair,
-            capability: "can_run_campaigns",
-          },
-          {
-            name: "Safety tests",
-            href: "/red-team/campaigns",
-            icon: FlaskConical,
-            capability: "can_run_campaigns",
-          },
-          {
-            name: "Live results",
-            href: "/red-team/monitor",
-            icon: Radio,
-            capability: "can_run_campaigns",
-          },
-          {
-            name: "Activity",
-            href: "/red-team/monitor/live",
-            icon: Activity,
-            capability: "can_run_campaigns",
-          },
-          {
-            name: "Outcomes",
-            href: "/red-team/matrix",
-            icon: BarChart3,
-            capability: "can_run_campaigns",
-          },
-          {
-            name: "Attack Graph",
-            href: "/red-team/graph",
-            icon: Waypoints,
-            capability: "can_run_campaigns",
-          },
-        ],
       },
-      { name: "Guard capabilities", href: "/guides/guard-capabilities", icon: Shield },
-      { name: "RAG Scanner", href: "/rag-scanner", icon: Database },
+      {
+        name: "Campaigns",
+        href: "/red-team/campaigns",
+        icon: FlaskConical,
+        capability: "can_run_campaigns",
+      },
+      {
+        name: "Attack Library",
+        href: "/red-team/library",
+        icon: FileSearch,
+        capability: "can_run_campaigns",
+      },
+    ],
+  },
+  {
+    label: "Detect",
+    items: [
+      {
+        name: "Detections",
+        href: "/red-team/monitor",
+        icon: Radio,
+        capability: "can_run_campaigns",
+      },
+      { name: "Activity", href: "/logs", icon: ScrollText },
+      {
+        name: "Outcomes",
+        href: "/red-team/matrix",
+        icon: BarChart3,
+        capability: "can_run_campaigns",
+      },
     ],
   },
   {
     label: "Investigate",
     items: [
       { name: "Findings", href: "/findings", icon: FileSearch },
-      { name: "Agentic Risks", href: "/risks", icon: ShieldAlert },
-      { name: "Reports", href: "/reports", icon: FileText },
+      {
+        name: "Attack Graph",
+        href: "/red-team/graph",
+        icon: Waypoints,
+        capability: "can_run_campaigns",
+      },
+      { name: "Sessions", href: "/replay", icon: History },
     ],
+  },
+  {
+    label: "Report",
+    items: [{ name: "Reports", href: "/reports", icon: FileText }],
   },
   {
     label: "Admin",
     adminOnly: true,
     items: [
-      { name: "Admin Overview", href: "/admin", icon: Shield },
-      { name: "Settings", href: "/settings", icon: Settings2 },
-      { name: "Providers", href: "/admin/providers", icon: Users, capability: "can_manage_providers" },
-      { name: "Policies", href: "/admin/policies", icon: Shield, capability: "can_manage_policies" },
-      { name: "Alerts & Integrations", href: "/admin/alerts", icon: Activity },
-      { name: "System & Keys", href: "/admin/system", icon: FileText },
+      {
+        name: "Integrations",
+        href: "/settings/integrations",
+        icon: Plug,
+        capability: "can_manage_integrations",
+      },
+      {
+        name: "AI Providers",
+        href: "/admin/providers",
+        icon: Cpu,
+        capability: "can_manage_providers",
+      },
+      { name: "API Keys", href: "/get-started", icon: KeyRound, exact: true },
+      { name: "Team & Access", href: "/settings/team", icon: Users },
+      { name: "Settings", href: "/settings", icon: Settings2, exact: true },
     ],
   },
 ];

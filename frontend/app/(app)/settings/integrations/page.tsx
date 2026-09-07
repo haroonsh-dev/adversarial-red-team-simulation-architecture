@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/stores/toast";
-import { INTEGRATION_UI, COMMAND_CENTER_UI, INTEGRATION_HEALTH_UI } from "@/lib/getStartedLabels";
+import { DATA_SOURCE_UI, INTEGRATION_UI, COMMAND_CENTER_UI, INTEGRATION_HEALTH_UI } from "@/lib/getStartedLabels";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntegrationHealthPanel } from "@/components/dashboard/IntegrationHealthPanel";
 import { useConnection } from "@/lib/context/ConnectionProvider";
@@ -180,7 +180,12 @@ function IntegrationWizard({
             </div>
             <div>
               <p className="font-semibold">LLM Provider</p>
-              <p className="mt-1 text-sm text-muted-foreground">Connect OpenAI, Anthropic, Groq, DeepSeek, or any OpenAI-compatible API.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Connect OpenAI, Anthropic, Groq, DeepSeek, or any OpenAI-compatible API.
+              </p>
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400/90">
+                {DATA_SOURCE_UI.llmProviderWizardNote}
+              </p>
             </div>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-foreground">
               Configure <ArrowRight className="h-3 w-3" />
@@ -195,7 +200,12 @@ function IntegrationWizard({
             </div>
             <div>
               <p className="font-semibold">Alert Channel</p>
-              <p className="mt-1 text-sm text-muted-foreground">Route alerts to Slack, PagerDuty, Splunk, webhooks, or Datadog.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Route alerts to Slack, PagerDuty, Splunk, webhooks, or Datadog.
+              </p>
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400/90">
+                {DATA_SOURCE_UI.alertWizardNote}
+              </p>
             </div>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-foreground">
               Configure <ArrowRight className="h-3 w-3" />
@@ -463,10 +473,10 @@ export default function IntegrationsPage() {
           <div className="rounded-lg border border-border bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
             {COMMAND_CENTER_UI.inboundDetail} Use{" "}
             <Link href="/get-started" className="font-medium text-foreground underline">
-              Get Started
+              API Keys
             </Link>{" "}
-            to send a test event, then watch{" "}
-            <Link href="/dashboard" className="font-medium text-foreground underline">
+            to create an ARTSA key and send a test event, then watch{" "}
+            <Link href="/command-center" className="font-medium text-foreground underline">
               Command Center
             </Link>.
           </div>

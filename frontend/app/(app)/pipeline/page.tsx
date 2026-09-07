@@ -33,8 +33,8 @@ export default function PipelinePage() {
   return (
     <PageStack>
       <PageHeader
-        title="Agent pipeline"
-        description="Closed-loop multi-agent chain — Research → Curator → Red Team → Target → Judge → Defender — with live hop status and handoff contracts."
+        title="AI Assets"
+        description="The agents ARTSA watches, and how they pass work to each other."
         icon={<GitBranch className="h-5 w-5" />}
         badge={<LiveIndicator connected={apiOnline && wsConnected} className="meta-badge" />}
         actions={
@@ -49,7 +49,7 @@ export default function PipelinePage() {
               Refresh
             </Button>
             <Button asChild size="sm">
-              <Link href="/campaigns">Open Red Team</Link>
+              <Link href="/red-team/lab">Attack Lab</Link>
             </Button>
           </div>
         }
@@ -142,7 +142,7 @@ export default function PipelinePage() {
           >
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[12px]">
-                <thead className="border-b border-[#313131] bg-[#141414] font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+                <thead className="border-b border-border bg-muted font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2.5 font-medium">Hop</th>
                     <th className="px-3 py-2.5 font-medium">From</th>
@@ -163,15 +163,15 @@ export default function PipelinePage() {
                         )}
                         onClick={() => setSelectedId(hop.from)}
                       >
-                        <td className="px-3 py-2 font-mono text-[#a7a7a7]">{hop.index}</td>
-                        <td className="px-3 py-2 font-medium text-white">
+                        <td className="px-3 py-2 font-mono text-muted-foreground">{hop.index}</td>
+                        <td className="px-3 py-2 font-medium text-foreground">
                           {PIPELINE_AGENT_BY_ID[hop.from].label}
                         </td>
-                        <td className="px-3 py-2 text-[#a7a7a7]">
+                        <td className="px-3 py-2 text-muted-foreground">
                           {PIPELINE_AGENT_BY_ID[hop.to].label}
                         </td>
-                        <td className="px-3 py-2 text-[#7c7c7c]">{hop.label}</td>
-                        <td className="px-3 py-2 font-mono uppercase text-[#6798ff]">
+                        <td className="px-3 py-2 text-muted-foreground">{hop.label}</td>
+                        <td className="px-3 py-2 font-mono uppercase text-[#67b3ef]">
                           {hop.edgeTag}
                         </td>
                       </tr>
@@ -204,9 +204,9 @@ export default function PipelinePage() {
 
 function cnRow(hot: boolean, selected: boolean): string {
   return [
-    "cursor-pointer border-b border-[#313131]/70 transition-colors",
-    selected ? "bg-[#1e1e1e]" : "hover:bg-[#161616]",
-    hot && !selected ? "bg-[#121820]" : "",
+    "cursor-pointer border-b border-border/70 transition-colors",
+    selected ? "bg-card" : "hover:bg-muted",
+    hot && !selected ? "bg-primary/10" : "",
   ]
     .filter(Boolean)
     .join(" ");

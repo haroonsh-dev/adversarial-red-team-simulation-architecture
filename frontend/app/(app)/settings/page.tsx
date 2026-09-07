@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import {
   Settings2,
   Cable,
-  ScrollText,
   Users,
-  BellRing,
   Shield,
   Cpu,
-  Code2,
+  KeyRound,
 } from "lucide-react";
 import { fetchFromBackend } from "@/lib/api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -88,46 +86,35 @@ export default function SettingsOverviewPage() {
 
   const cards = [
     {
-      title: "API Setup",
-      description: "Developer quickstart, API keys, and browser test events",
-      href: "/settings/developer",
-      icon: Code2,
-      stats: [
-        { label: "Keys configured", value: summary.keys_configured },
-        { label: "Guardrails", value: summary.guardrails },
-      ],
-    },
-    {
       title: "Integrations",
-      description: "LLM providers, guardrails, and SIEM/SOAR alert channels",
+      description: "Connect apps and alert channels.",
       href: "/settings/integrations",
       icon: Cable,
       stats: [
         { label: "Providers", value: summary.providers },
         { label: "Alert channels", value: summary.integrations },
-        { label: "Guardrails", value: summary.guardrails },
       ],
     },
     {
-      title: "Team",
-      description: "Manage team members, roles, and access control",
+      title: "AI Providers",
+      description: "Model keys ARTSA uses when it needs to call a model.",
+      href: "/admin/providers",
+      icon: Cpu,
+      stats: [{ label: "Registered", value: summary.providers }],
+    },
+    {
+      title: "API Keys",
+      description: "Keys for your app to send activity to ARTSA.",
+      href: "/get-started",
+      icon: KeyRound,
+      stats: [{ label: "Keys configured", value: summary.keys_configured }],
+    },
+    {
+      title: "Team & Access",
+      description: "People, roles, and who can do what.",
       href: "/settings/team",
       icon: Users,
       stats: [{ label: "Members", value: summary.team_members }],
-    },
-    {
-      title: "Notifications",
-      description: "Email digests, Slack alerts, PagerDuty, and SIEM routing",
-      href: "/settings/notifications",
-      icon: BellRing,
-      stats: [{ label: "Active channels", value: summary.active_channels }],
-    },
-    {
-      title: "Audit Log",
-      description: "Complete record of configuration changes and system events",
-      href: "/settings/audit-log",
-      icon: ScrollText,
-      stats: [{ label: "Events", value: summary.audit_entries }],
     },
   ];
 
@@ -135,7 +122,7 @@ export default function SettingsOverviewPage() {
     <PageStack>
       <PageHeader
         title="Settings"
-        description="Platform configuration, integrations, team management, and audit trail."
+        description="Integrations, providers, keys, and who can access ARTSA."
         icon={<Settings2 className="h-5 w-5" />}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -166,8 +153,8 @@ export default function SettingsOverviewPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl border border-border/70 bg-[#0B101E]/60" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-44 animate-pulse rounded-2xl border border-border/70 bg-muted/60" />
           ))}
         </div>
       )}
@@ -180,26 +167,26 @@ export default function SettingsOverviewPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <QuickActionTile
             href="/settings/integrations"
-            title="Add Provider"
-            description="Connect an LLM backend"
+            title="Integrations"
+            description="Connect apps and alerts"
+            icon={Cable}
+          />
+          <QuickActionTile
+            href="/admin/providers"
+            title="AI Providers"
+            description="Add a model key"
             icon={Cpu}
           />
           <QuickActionTile
-            href="/settings/notifications"
-            title="Configure Alerts"
-            description="Set up notification channels"
-            icon={BellRing}
-          />
-          <QuickActionTile
-            href="/settings/developer"
-            title="API Setup"
-            description="Keys, snippets, and test events"
-            icon={Code2}
+            href="/get-started"
+            title="API Keys"
+            description="Create a key for your app"
+            icon={KeyRound}
           />
           <QuickActionTile
             href="/settings/team"
-            title="Invite Members"
-            description="Add team members"
+            title="Team & Access"
+            description="Invite people and set roles"
             icon={Users}
           />
         </div>

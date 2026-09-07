@@ -36,20 +36,20 @@ export function AssessmentRiskHero({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-[#313131] bg-[#0a0a0a]",
+        "overflow-hidden rounded-xl border border-border bg-background",
         className
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#313131] px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
             Scan results
           </p>
           {title ? (
-            <h2 className="mt-1 text-base font-semibold tracking-tight text-white">{title}</h2>
+            <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground">{title}</h2>
           ) : null}
           {subtitle ? (
-            <p className="mt-0.5 font-mono text-[11px] text-[#7c7c7c]">{subtitle}</p>
+            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
         {actions}
@@ -57,13 +57,13 @@ export function AssessmentRiskHero({
 
       <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center sm:p-5">
         <div className="text-center sm:text-left">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             Risk score
           </p>
           <p
             className={cn(
               "mt-1 font-mono text-5xl font-semibold tabular-nums tracking-tight",
-              empty ? "text-[#454545]" : "text-white"
+              empty ? "text-muted-foreground" : "text-foreground"
             )}
           >
             {empty ? "—" : `${overview.riskScore}%`}
@@ -103,9 +103,9 @@ function Metric({
   tone?: string;
 }) {
   return (
-    <div className="rounded-[8px] border border-[#313131] bg-[#141414] px-3 py-3">
-      <p className="font-mono text-[9px] uppercase tracking-[0.06em] text-[#454545]">{label}</p>
-      <p className={cn("mt-1 font-mono text-xl font-semibold tabular-nums text-white", tone)}>
+    <div className="rounded-[8px] border border-border bg-muted px-3 py-3">
+      <p className="font-mono text-[9px] uppercase tracking-[0.06em] text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 font-mono text-xl font-semibold tabular-nums text-foreground", tone)}>
         {value}
       </p>
     </div>

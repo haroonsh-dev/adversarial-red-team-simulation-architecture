@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   GitCompare,
-  Loader2,
   Search,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -23,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EMPTY_STATE_UI } from "@/lib/getStartedLabels";
 import { Shield } from "lucide-react";
 
 interface TimelineEntry {
@@ -235,7 +233,7 @@ export default function RoundReplayPage() {
   if (!loadingSessions && sessions.length === 0) {
     return (
       <div className="replay-theater">
-        <FlowEmptyState title="No sessions to replay yet" />
+        <FlowEmptyState title="No sessions yet" />
       </div>
     );
   }
@@ -275,11 +273,11 @@ export default function RoundReplayPage() {
         ) : !current ? (
           <EmptyState
             icon={Shield}
-            title="Nothing to replay in this session"
-            description="This session has no tool calls yet. Connect agents or complete a red-team scan to generate activity."
+            title="Nothing in this session yet"
+            description="This session has no actions yet. Connect an app or run Attack Lab to generate activity."
             action={
               <Button asChild size="sm">
-                <Link href="/get-started">{EMPTY_STATE_UI.openSetup}</Link>
+                <Link href="/get-started">API Keys</Link>
               </Button>
             }
             className="min-h-[420px] border-0 bg-transparent shadow-none"

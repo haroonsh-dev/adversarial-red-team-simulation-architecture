@@ -15,7 +15,7 @@ export function LandingProductScreenshot({
   return (
     <div
       className={cn(
-        "landing-product-screenshot flex h-[11.5rem] overflow-hidden bg-[#0a0a0a] text-[7px] leading-tight sm:h-[12.5rem]",
+        "landing-product-screenshot flex h-[11.5rem] overflow-hidden bg-[#070707] text-[7px] leading-tight sm:h-[12.5rem]",
         className
       )}
       aria-hidden
@@ -27,7 +27,7 @@ export function LandingProductScreenshot({
             key={label}
             className={cn(
               "mb-0.5 truncate rounded px-1 py-0.5",
-              isActiveNav(screen, label, i) ? "bg-[#1e1e1e] text-white" : "text-[#a7a7a7]"
+              isActiveNav(screen, label, i) ? "bg-[#131313] text-white" : "text-[#a7a7a7]"
             )}
           >
             {label}
@@ -61,7 +61,7 @@ function ScreenHeader({ title, badge }: { title: string; badge?: string }) {
     <div className="mb-2 flex items-center justify-between gap-1 border-b border-[#313131] pb-1.5">
       <span className="truncate font-medium text-white">{title}</span>
       {badge ? (
-        <span className="shrink-0 rounded border border-[#313131] bg-[#1e1e1e] px-1 py-px font-mono text-[6px] text-[#6798ff]">
+        <span className="shrink-0 rounded border border-[#313131] bg-[#131313] px-1 py-px font-mono text-[6px] text-[#67b3ef]">
           {badge}
         </span>
       ) : null}
@@ -80,7 +80,7 @@ function CommandScreen() {
           { v: "12", l: "sessions" },
           { v: "3", l: "critical" },
         ].map((s) => (
-          <div key={s.l} className="rounded border border-[#313131] bg-[#1e1e1e] p-1">
+          <div key={s.l} className="rounded border border-[#313131] bg-[#131313] p-1">
             <div className="font-mono text-[8px] text-white">{s.v}</div>
             <div className="text-[6px] text-[#a7a7a7]">{s.l}</div>
           </div>
@@ -92,7 +92,7 @@ function CommandScreen() {
             key={i}
             className={cn(
               "aspect-square rounded-[2px]",
-              i % 6 === 0 ? "bg-[#6798ff]/70" : i % 4 === 0 ? "bg-[#6798ff]/35" : "bg-[#1e1e1e]"
+              i % 6 === 0 ? "bg-[#67b3ef]/70" : i % 4 === 0 ? "bg-[#67b3ef]/35" : "bg-[#131313]"
             )}
           />
         ))}
@@ -103,7 +103,7 @@ function CommandScreen() {
             key={row}
             className={cn(
               "truncate rounded px-1 py-0.5 font-mono",
-              i === 0 ? "bg-[#1e1e1e] text-[#6798ff]" : "text-[#a7a7a7]"
+              i === 0 ? "bg-[#131313] text-[#67b3ef]" : "text-[#a7a7a7]"
             )}
           >
             {row}
@@ -144,9 +144,9 @@ function FindingsScreen() {
               <span
                 className={cn(
                   "rounded px-0.5 font-mono text-[5px]",
-                  r.sev === "CRITICAL" && "bg-[#6798ff]/25 text-[#6798ff]",
-                  r.sev === "HIGH" && "bg-[#1e1e1e] text-white",
-                  r.sev === "MEDIUM" && "bg-[#1e1e1e] text-[#a7a7a7]"
+                  r.sev === "CRITICAL" && "bg-[#67b3ef]/25 text-[#67b3ef]",
+                  r.sev === "HIGH" && "bg-[#131313] text-white",
+                  r.sev === "MEDIUM" && "bg-[#131313] text-[#a7a7a7]"
                 )}
               >
                 {r.sev}
@@ -170,7 +170,7 @@ function RedTeamScreen() {
             key={i}
             className={cn(
               "aspect-square rounded-[2px]",
-              i % 5 === 0 ? "bg-[#6798ff]/65" : i % 8 === 0 ? "bg-[#6798ff]/30" : "bg-[#1e1e1e]"
+              i % 5 === 0 ? "bg-[#67b3ef]/65" : i % 8 === 0 ? "bg-[#67b3ef]/30" : "bg-[#131313]"
             )}
           />
         ))}
@@ -178,7 +178,7 @@ function RedTeamScreen() {
       <div className="grid grid-cols-2 gap-1">
         <div className="rounded border border-[#313131] p-1">
           <div className="text-[6px] text-[#a7a7a7]">Bypasses</div>
-          <div className="font-mono text-[9px] text-[#6798ff]">3</div>
+          <div className="font-mono text-[9px] text-[#67b3ef]">3</div>
         </div>
         <div className="rounded border border-[#313131] p-1">
           <div className="text-[6px] text-[#a7a7a7]">Judge verdict</div>
@@ -199,18 +199,18 @@ function ReplayScreen() {
             key={l}
             className={cn(
               "flex-1 rounded py-1 text-center font-mono text-[5px]",
-              i >= 4 ? "bg-[#6798ff]/40 text-white" : "bg-[#1e1e1e] text-[#a7a7a7]"
+              i >= 4 ? "bg-[#67b3ef]/40 text-white" : "bg-[#131313] text-[#a7a7a7]"
             )}
           >
             {l}
           </div>
         ))}
       </div>
-      <div className="relative mb-1.5 h-1 overflow-hidden rounded-full bg-[#1e1e1e]">
-        <div className="absolute inset-y-0 left-0 w-[68%] rounded-full bg-[#6798ff]" />
+      <div className="relative mb-1.5 h-1 overflow-hidden rounded-full bg-[#131313]">
+        <div className="absolute inset-y-0 left-0 w-[68%] rounded-full bg-[#67b3ef]" />
       </div>
-      <div className="rounded border border-[#313131] bg-[#1e1e1e] p-1">
-        <div className="font-mono text-[6px] text-[#6798ff]">QUARANTINE @ 4.2ms</div>
+      <div className="rounded border border-[#313131] bg-[#131313] p-1">
+        <div className="font-mono text-[6px] text-[#67b3ef]">QUARANTINE @ 4.2ms</div>
         <div className="mt-0.5 text-[6px] text-[#a7a7a7]">Layer 2 · Layer 8 fired</div>
       </div>
     </>
@@ -228,7 +228,7 @@ function PipelineScreen() {
             <div
               className={cn(
                 "h-5 w-5 rounded-md border",
-                i === 1 ? "border-[#6798ff]/50 bg-[#6798ff]/20" : "border-[#313131] bg-[#1e1e1e]"
+                i === 1 ? "border-[#67b3ef]/50 bg-[#67b3ef]/20" : "border-[#313131] bg-[#131313]"
               )}
             />
             <span className="max-w-[2.5rem] truncate text-center text-[5px] text-[#a7a7a7]">{n}</span>
@@ -239,10 +239,10 @@ function PipelineScreen() {
       <div className="mt-1 space-y-0.5">
         <div className="flex justify-between text-[6px] text-[#a7a7a7]">
           <span>Integrity</span>
-          <span className="text-[#6798ff]">3/4 healthy</span>
+          <span className="text-[#67b3ef]">3/4 healthy</span>
         </div>
-        <div className="h-1 overflow-hidden rounded-full bg-[#1e1e1e]">
-          <div className="h-full w-3/4 rounded-full bg-[#6798ff]" />
+        <div className="h-1 overflow-hidden rounded-full bg-[#131313]">
+          <div className="h-full w-3/4 rounded-full bg-[#67b3ef]" />
         </div>
       </div>
     </>

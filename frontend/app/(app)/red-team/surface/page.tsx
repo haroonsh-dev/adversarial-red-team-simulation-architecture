@@ -20,9 +20,8 @@ export default function AttackSurfacePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Attack surface</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Derived from live campaign findings and configured target providers — not a static demo map.
+        <p className="text-[13px] text-muted-foreground">
+          What you have tested from campaigns and connected providers — not a static map.
         </p>
       </div>
 

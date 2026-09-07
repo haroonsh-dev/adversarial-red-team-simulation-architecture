@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Rocket } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import {
   filterNavItemsByCapability,
@@ -13,8 +12,6 @@ import {
 import { NavItemsList } from "@/components/layout/NavItemsList";
 import { useAuthRole } from "@/lib/hooks/useAuthRole";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -101,12 +98,7 @@ export default function MobileNav() {
               aria-label="Navigation menu"
             >
               <div className="flex items-center justify-between border-b border-border p-4">
-                <div className="flex items-center gap-2">
-                  <Logo iconSize={20} />
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-mono">
-                    v0.3
-                  </Badge>
-                </div>
+                <Logo iconSize={20} />
                 <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Close menu">
                   <X className="h-5 w-5" />
                 </Button>
@@ -114,10 +106,12 @@ export default function MobileNav() {
 
               <nav className="flex-1 overflow-y-auto p-3" aria-label="Main navigation">
                 {visibleSections.map((section) => (
-                  <div key={section.label} className="mb-6">
-                    <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {section.label}
-                    </p>
+                  <div key={section.label || "primary"} className="mb-6">
+                    {section.label ? (
+                      <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {section.label}
+                      </p>
+                    ) : null}
                     <ul className="space-y-0.5">
                       <NavItemsList
                         items={section.items}
@@ -128,17 +122,6 @@ export default function MobileNav() {
                   </div>
                 ))}
               </nav>
-
-              <Separator />
-              <div className="p-4">
-                <Link
-                  href="/get-started"
-                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/50"
-                >
-                  <Rocket className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                  Setup checklist
-                </Link>
-              </div>
             </motion.aside>
           </>
         )}

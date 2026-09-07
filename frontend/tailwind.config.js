@@ -103,6 +103,21 @@ module.exports = {
           6: "hsl(var(--chart-6))",
           7: "hsl(var(--chart-7))",
         },
+
+        /* Brand blues — do not map 900/950 to canvas black (breaks light mode). */
+        indigo: {
+          50: "#f3f9fe",
+          100: "#e8f3ff",
+          200: "#bddaf9",
+          300: "#67b3ef",
+          400: "#67b3ef",
+          500: "#285cdd",
+          600: "#285cdd",
+          700: "#1e4bb8",
+          800: "#163a8f",
+          900: "#0b173b",
+          950: "#07102a",
+        },
       },
 
       borderRadius: {
@@ -112,8 +127,9 @@ module.exports = {
       },
 
       fontFamily: {
-        sans: ["var(--font-inter)", "var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        sans: ["var(--font-inter)", "var(--font-manrope)", "var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
         mono: ["var(--font-jetbrains-mono)", "var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        serif: ["Georgia", "Cambria", "\"Times New Roman\"", "Times", "serif"],
         inter: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
         "jetbrains-mono": ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },

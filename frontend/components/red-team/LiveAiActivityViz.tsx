@@ -191,7 +191,7 @@ export function LiveAiActivityViz({
                   </span>
                   <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-[#6798ff]"
+                      className="h-full rounded-full bg-[#67b3ef]"
                       style={{ width: `${Math.min(100, a.maxRisk)}%` }}
                     />
                   </div>

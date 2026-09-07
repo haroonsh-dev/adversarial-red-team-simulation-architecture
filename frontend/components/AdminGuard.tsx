@@ -56,7 +56,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
             <Link href={landingSignInHref({ returnTo: "/settings/integrations" })}>Sign in again</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard">Command Center</Link>
+            <Link href="/command-center">Command Center</Link>
           </Button>
         </div>
       </div>
@@ -78,7 +78,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard">Back to Command Center</Link>
+          <Link href="/command-center">Back to Command Center</Link>
         </Button>
       </div>
     );

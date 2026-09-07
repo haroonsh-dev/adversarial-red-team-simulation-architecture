@@ -6,10 +6,10 @@ import { easeOut, staggerContainer, fadeUp } from "@/lib/motionPresets";
 import { AnimatedNumber } from "@/components/shared/AnimatedNumber";
 
 const STATS = [
-  { icon: Gauge, value: 42, suffix: "ms", label: "Containment p99 latency" },
+  { icon: Gauge, value: 42, suffix: "ms", label: "Chain verdict at runtime" },
   { icon: Layers, value: 3, suffix: "", label: "Detection layers in parallel" },
   { icon: Shield, value: 10, suffix: "", label: "OWASP LLM risks mapped" },
-  { icon: FileCheck, value: 100, suffix: "%", label: "Audit trail coverage" },
+  { icon: FileCheck, value: 100, suffix: "%", label: "Agent action coverage" },
 ] as const;
 
 export function LandingHowItWorks() {
@@ -24,11 +24,12 @@ export function LandingHowItWorks() {
         >
           <p className="lp-eyebrow">How it works</p>
           <h2 className="lp-heading mt-6 max-w-2xl">
-            Ingest. Score. Contain. Prove.
+            Agents. Attack. Detect. Protect. Test again.
           </h2>
           <p className="lp-body mt-4 max-w-xl">
-            ARTSA sits inline with your agent runtime — every tool call is inspected before it
-            lands, with chain-of-custody ready for the SOC and the board.
+            TrustMesh sits inline with your multi-agent runtime — every tool call is screened
+            against the whole chain before it lands, so a single manipulated agent can&apos;t
+            steer the others into an unsafe outcome.
           </p>
         </motion.div>
 

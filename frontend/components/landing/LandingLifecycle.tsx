@@ -26,7 +26,7 @@ const LIFECYCLE = [
     step: "02",
     icon: Shield,
     title: "Contain at runtime",
-    body: "Sub-50ms ingest scoring, layered verdicts, and explicit KILL / QUARANTINE actions before escape paths compound.",
+    body: "Ingest scoring and layered verdicts today. Explicit KILL / QUARANTINE is the designed action enum — in-session blocking is not built yet.",
     href: demoHref("guard"),
     tag: "Runtime",
   },

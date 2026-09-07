@@ -16,10 +16,10 @@ import { LandingSectionHeader } from "./LandingSectionHeader";
 const FEATURES = [
   {
     icon: Activity,
-    title: "Live containment",
+    title: "Adaptive detection curve",
     description:
-      "Stream agent telemetry through ingest, score risk in real time, and enforce KILL or QUARANTINE before damage spreads.",
-    tag: "Real-time",
+      "Compare continuously updating defense against a static baseline. In-session KILL / QUARANTINE is the designed next control, not a shipped gate.",
+    tag: "Research",
   },
   {
     icon: Crosshair,

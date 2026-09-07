@@ -58,8 +58,8 @@ export function LandingFooter() {
             <LandingContactSalesButton variant="ghost" className="lp-btn-secondary mt-6">
               Contact sales
             </LandingContactSalesButton>
-            <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[8px] bg-[var(--color-blue-cornflower)]">
-              <span className="text-[28px] leading-none" aria-hidden>
+            <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-pistachio)]">
+              <span className="text-[28px] leading-none text-[var(--color-obsidian)]" aria-hidden>
                 ◈
               </span>
             </div>

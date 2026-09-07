@@ -117,11 +117,12 @@ OUTPUT_PATTERNS: list[tuple[str, str, str, float, str]] = [
 
 
 class ToolOutputScanner(BaseDetector):
-    """Scans tool call responses for sensitive data exposure.
+    """Scans tool call *responses* for sensitive data exposure.
 
-    Only fires when `event.response` is populated (i.e., after a tool has
-    executed and returned output). Falls back to scanning arguments only if
-    no response is available.
+    Pre-execution ingest (no ``event.response``) must not use this detector —
+    argument scanning belongs to rule/injection detectors so a KILL can happen
+    before the tool runs. Concatenating arguments into the output scan is
+    forbidden: it would treat intended inputs as leaked secrets.
     """
 
     def __init__(self) -> None:
@@ -129,15 +130,10 @@ class ToolOutputScanner(BaseDetector):
         self.PATTERNS = OUTPUT_PATTERNS
 
     def detect(self, event: ToolCallEvent) -> SecurityEvent | None:
-        # Prefer scanning the response (output), fall back to arguments
-        scan_text = str(event.response) if event.response else str(event.arguments)
+        if not event.response:
+            return None
 
-        # Also include arguments when checking for credentials that may have
-        # been passed *into* the tool (e.g., an agent passing a leaked key as
-        # an argument to another tool).
-        if event.response:
-            scan_text = f"{scan_text} {event.arguments}"
-
+        scan_text = str(event.response)
         for pattern, event_type, severity, risk_score, desc in self.PATTERNS:
             match = re.search(pattern, scan_text)
             if match:
@@ -153,7 +149,7 @@ class ToolOutputScanner(BaseDetector):
                         "matched_text": match.group(0),
                         "tool": event.tool_name,
                         "span": [match.start(), match.end()],
-                        "source": "tool_response" if event.response else "tool_arguments",
+                        "source": "tool_response",
                     },
                     detector=self.name,
                 )

@@ -125,12 +125,12 @@ export function computeReadinessFlow(input: ReadinessFlowInput): ReadinessFlowSt
 
   const nextAction =
     phase === "validate"
-      ? { label: "Run security tests", href: "/get-started#phase-validate", phase: "validate" as const }
+      ? { label: "Try an attack", href: "/campaigns", phase: "validate" as const }
       : phase === "ingest"
-        ? { label: "Send test event", href: "/get-started#phase-ingest", phase: "ingest" as const }
+        ? { label: "Send a test", href: "/command-center", phase: "ingest" as const }
         : phase === "confirm"
           ? { label: "Open activity log", href: "/logs", phase: "confirm" as const }
-          : { label: "Open Command Center", href: "/dashboard", phase: "complete" as const };
+          : { label: "Open Command Center", href: "/command-center", phase: "complete" as const };
 
   return {
     phase,

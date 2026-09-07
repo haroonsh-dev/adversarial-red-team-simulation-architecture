@@ -1,12 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, Manrope, JetBrains_Mono } from "next/font/google";
 import { ClientProviders } from "@/components/ClientProviders";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -31,13 +38,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#070707",
   colorScheme: "dark light",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" data-theme="dark" className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased [font-feature-settings:'liga'_1]">
         <ClientProviders>
           <a

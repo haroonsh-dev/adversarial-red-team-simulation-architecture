@@ -9,7 +9,7 @@ import { LandingSectionHeader } from "./LandingSectionHeader";
 
 const PRODUCTS = [
   {
-    href: "/dashboard",
+    href: "/command-center",
     icon: LayoutDashboard,
     title: "Command Center",
     description: "Live telemetry, severity matrix, observatory — one ops surface.",

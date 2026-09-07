@@ -29,7 +29,7 @@ function outcomeBorder(outcome: LiveOutcome | null | undefined, kind: string): s
     if (outcome === "fail") return "border-l-[hsl(var(--severity-critical))]";
     return "border-l-[hsl(var(--severity-medium))]";
   }
-  if (kind === "attack") return "border-l-[#6798ff]";
+  if (kind === "attack") return "border-l-[#67b3ef]";
   if (kind === "response") return "border-l-muted-foreground/50";
   return "border-l-border";
 }
@@ -60,7 +60,7 @@ function VirtualEventStream({
   return (
     <div
       ref={scrollerRef}
-      className="relative overflow-y-auto rounded-md border border-border bg-[#0a0a0a]/40"
+      className="relative overflow-y-auto rounded-md border border-border bg-background/40"
       style={{ height: VIEWPORT_H }}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       role="log"
@@ -181,13 +181,17 @@ function TheaterInner() {
       <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border px-3 py-2.5">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Live campaign run
+            Live run · under Monitor
           </p>
           <p className="mt-0.5 text-[14px] font-medium text-foreground">
             {campaign?.name || id.slice(0, 8)}
           </p>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Watch attack → target → judge as rounds play. For all agent traffic, open{" "}
+            This is one campaign theater. The sidebar{" "}
+            <Link href="/red-team/monitor" className="underline-offset-2 hover:underline">
+              Monitor
+            </Link>{" "}
+            lists every run. All-agent traffic is under{" "}
             <Link href="/red-team/monitor/live" className="underline-offset-2 hover:underline">
               Activity
             </Link>
@@ -214,7 +218,7 @@ function TheaterInner() {
             <Link href={`/red-team/evidence?campaign=${id}`}>Evidence</Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/red-team/monitor">Hub</Link>
+            <Link href="/red-team/monitor">← Monitor</Link>
           </Button>
         </div>
       </div>
@@ -224,7 +228,7 @@ function TheaterInner() {
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              running ? "bg-[#6798ff]" : "bg-[hsl(var(--severity-low))]"
+              running ? "bg-[#67b3ef]" : "bg-[hsl(var(--severity-low))]"
             )}
             style={{ width: `${progress}%` }}
           />
@@ -241,7 +245,7 @@ function TheaterInner() {
                 <span
                   className={cn(
                     "h-2.5 w-2.5 rounded-full",
-                    st === "running" && "animate-pulse bg-[#6798ff] shadow-[0_0_8px_#6798ff88]",
+                    st === "running" && "animate-pulse bg-[#67b3ef] shadow-[0_0_8px_#67b3ef88]",
                     st === "done" && "bg-[hsl(var(--severity-low))]",
                     st === "idle" && "bg-muted-foreground/35"
                   )}

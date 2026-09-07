@@ -22,7 +22,7 @@ function LoginFormInner() {
   const setSession = useAuthStore((s) => s.setSession);
 
   const returnTo = searchParams.get("returnTo") || "";
-  const dest = returnTo.startsWith("/") ? returnTo : "/dashboard";
+  const dest = returnTo.startsWith("/") ? returnTo : "/command-center";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -93,7 +93,7 @@ function LoginFormInner() {
       mode="signin"
       title="Sign in"
       subtitle="Enter your work email to access your ARTSA workspace."
-      returnTo={dest !== "/dashboard" ? dest : undefined}
+      returnTo={dest !== "/command-center" ? dest : undefined}
     >
       <form onSubmit={(e) => void handleLogin(e)} className="space-y-4" noValidate>
         <div>
@@ -101,7 +101,7 @@ function LoginFormInner() {
             Work email
           </label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+            <Mail className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
               id="login-email"
               type="email"
@@ -123,7 +123,7 @@ function LoginFormInner() {
             Password
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#7c7c7c]" aria-hidden />
+            <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
             <input
               id="login-password"
               type="password"
@@ -142,7 +142,7 @@ function LoginFormInner() {
 
         {error ? (
           <p
-            className="rounded-[8px] border border-[#313131] bg-[#0a0a0a] px-3 py-2 text-[13px] text-[#a7a7a7]"
+            className="rounded-[8px] border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground"
             role="alert"
           >
             {error}
@@ -151,7 +151,7 @@ function LoginFormInner() {
 
         <button
           type="submit"
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-white text-[14px] font-medium text-[#0a0a0a] transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-button text-[14px] font-semibold tracking-[0.04em] text-button-foreground transition-colors hover:bg-button-hover disabled:opacity-50"
           disabled={loading}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
@@ -161,10 +161,10 @@ function LoginFormInner() {
 
       {isOidcEnabled() ? (
         <div className="mt-4">
-          <p className="mb-3 text-center text-[12px] uppercase tracking-[0.08em] text-[#7c7c7c]">or</p>
+          <p className="mb-3 text-center text-[12px] uppercase tracking-[0.08em] text-muted-foreground">or</p>
           <button
             type="button"
-            className="inline-flex h-11 w-full items-center justify-center rounded-[8px] border border-[#454545] text-[14px] font-medium text-white hover:border-[#a7a7a7] disabled:opacity-50"
+            className="inline-flex h-11 w-full items-center justify-center rounded-[8px] border border-border text-[14px] font-medium text-foreground hover:border-[#a7a7a7] disabled:opacity-50"
             onClick={() => void handleSsoLogin()}
             disabled={loading}
           >
@@ -173,11 +173,11 @@ function LoginFormInner() {
         </div>
       ) : null}
 
-      <p className="mt-6 text-center text-[14px] text-[#a7a7a7]">
+      <p className="mt-6 text-center text-[14px] text-muted-foreground">
         {registrationOpen === false ? (
           <>
             Need access?{" "}
-            <Link href="/#contact" className="font-medium text-white hover:text-[#6798ff]">
+            <Link href="/#contact" className="font-medium text-foreground hover:text-[#67b3ef]">
               Contact sales
             </Link>
           </>
@@ -185,8 +185,8 @@ function LoginFormInner() {
           <>
             New here?{" "}
             <Link
-              href={authSignupHref({ returnTo: dest !== "/dashboard" ? dest : undefined })}
-              className="font-medium text-white hover:text-[#6798ff]"
+              href={authSignupHref({ returnTo: dest !== "/command-center" ? dest : undefined })}
+              className="font-medium text-foreground hover:text-[#67b3ef]"
             >
               Sign up
             </Link>
@@ -201,8 +201,8 @@ export default function LoginClient() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-          <Loader2 className="h-6 w-6 animate-spin text-[#a7a7a7]" aria-hidden />
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
         </div>
       }
     >

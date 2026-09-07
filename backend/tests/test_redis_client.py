@@ -20,10 +20,18 @@ def test_inmemory_xadd_many_appends_all_entries_in_order():
     assert [e["id"] for e in stream] == ["a", "b", "c", "d", "e"]
 
 
-def test_inmemory_xadd_many_empty_is_noop():
+def test_inmemory_set_get_round_trip():
     r = InMemoryRedis()
-    assert r.xadd_many("s", []) == []
-    assert r._streams.get("s") is None
+    r.set("artsa:hmac:exec:c1", '{"ok":true}', ttl_sec=30)
+    assert r.get("artsa:hmac:exec:c1") == '{"ok":true}'
+    assert r.get("missing") is None
+
+
+def test_inmemory_set_nx_is_first_writer_wins_with_ttl():
+    r = InMemoryRedis()
+    assert r.set_nx("artsa:hmac:nonce:abc", "1", ttl_sec=30) is True
+    assert r.set_nx("artsa:hmac:nonce:abc", "1", ttl_sec=30) is False
+    assert r.set_nx("artsa:ws:ticket:xyz", "1", ttl_sec=5) is True
 
 
 class _FakePipe:

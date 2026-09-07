@@ -10,12 +10,12 @@ import { LandingSignInButton } from "./LandingSignInButton";
 import { LandingContactSalesButton } from "./LandingContactSalesButton";
 
 const NAV = [
+  { href: "#challenge", label: "Challenge" },
+  { href: "#solution", label: "Solution" },
   { href: "#platforms", label: "Product" },
   { href: "#use-cases", label: "Use cases" },
   { href: "#pricing", label: "Pricing" },
-  { href: "#compare", label: "Compare" },
   { href: "#faq", label: "FAQ" },
-  { href: "#contact", label: "Contact" },
 ] as const;
 
 export function LandingNav() {
@@ -49,7 +49,10 @@ export function LandingNav() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-6 lg:flex">
+        <div className="hidden items-center gap-3 lg:flex">
+          <Link href={demoHref("guard")} className="lp-btn-ghost hover:bg-transparent">
+            Live demo
+          </Link>
           <LandingSignInButton variant="ghost" size="sm" className="lp-btn-ghost hover:bg-transparent">
             Sign in
           </LandingSignInButton>
@@ -60,7 +63,7 @@ export function LandingNav() {
 
         <button
           type="button"
-          className="text-[var(--color-snow)] lg:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center text-[var(--color-snow)] lg:hidden"
           aria-expanded={open}
           aria-controls="lp-mobile-menu"
           aria-label={open ? "Close menu" : "Open menu"}

@@ -10,6 +10,32 @@ export const dynamic = "force-dynamic";
 
 const SERVER_API_KEY = process.env.ARTSA_API_KEY || "";
 
+function isOfflinePreviewBearer(authHeader: string | null): boolean {
+  if (!authHeader) return true;
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  return !token || token === "demo_preview_token" || token.startsWith("admin_token_");
+}
+
+function applyUpstreamAuth(headers: Headers, request: NextRequest): void {
+  const xApiKey = request.headers.get("x-api-key");
+  const auth = request.headers.get("authorization");
+
+  if (xApiKey) {
+    headers.set("x-api-key", xApiKey);
+    return;
+  }
+
+  // Stale or demo JWTs block SERVER_API_KEY injection and cause 401 spam — skip them.
+  if (auth && !isOfflinePreviewBearer(auth)) {
+    headers.set("authorization", auth);
+    return;
+  }
+
+  if (SERVER_API_KEY) {
+    headers.set("x-api-key", SERVER_API_KEY);
+  }
+}
+
 /** Default read timeout — long enough for real DB/LLM-adjacent endpoints. */
 const PROXY_TIMEOUT_MS = 12_000;
 const LONG_PROXY_TIMEOUT_MS = 35_000;
@@ -70,15 +96,13 @@ async function proxy(
   const target = `${baseUrl}/${path.replace(/^\/+/, "")}${query}`;
 
   const headers = new Headers();
-  const xApiKey = request.headers.get("x-api-key");
-  const auth = request.headers.get("authorization");
-  if (xApiKey) {
-    headers.set("x-api-key", xApiKey);
-  } else if (auth) {
-    headers.set("authorization", auth);
-  } else if (SERVER_API_KEY) {
-    headers.set("x-api-key", SERVER_API_KEY);
+  applyUpstreamAuth(headers, request);
+
+  const tenantId = request.headers.get("x-tenant-id");
+  if (tenantId) {
+    headers.set("x-tenant-id", tenantId);
   }
+
   const contentType = request.headers.get("content-type");
   if (contentType) {
     headers.set("content-type", contentType);

@@ -1,13 +1,11 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import ReplayContent from "./ReplayContent";
+import { PageSuspenseFallback } from "@/components/shared/PageSuspenseFallback";
 
-export default function ReplayRedirect({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const session = searchParams.session;
-  if (typeof session === "string") {
-    redirect(`/red-team/evidence?session=${encodeURIComponent(session)}`);
-  }
-  redirect("/red-team/evidence");
+export default function SessionsPage() {
+  return (
+    <Suspense fallback={<PageSuspenseFallback label="Loading sessions…" />}>
+      <ReplayContent />
+    </Suspense>
+  );
 }

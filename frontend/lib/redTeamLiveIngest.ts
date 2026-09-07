@@ -312,7 +312,43 @@ export type LiveMonitorEventRow = {
   severity: string;
   detectors: string[];
   outcome: LiveOutcome;
+  mitre: string;
+  asi: string;
 };
+
+function inferTaxonomy(blob: string): { mitre: string; asi: string } {
+  const t = blob.toLowerCase();
+  if (t.includes("jailbreak") || t.includes("jbk")) return { mitre: "AML.T0054", asi: "ASI10" };
+  if (t.includes("exfil") || t.includes("data_extract") || t.includes("dex")) {
+    return { mitre: "AML.T0057", asi: "ASI06" };
+  }
+  if (t.includes("goal") || t.includes("plugin") || t.includes("tpa")) {
+    return { mitre: "AML.T0053", asi: "ASI02" };
+  }
+  if (t.includes("prompt") || t.includes("injection") || t.includes("dpi")) {
+    return { mitre: "AML.T0051", asi: "ASI01" };
+  }
+  return { mitre: "—", asi: "—" };
+}
+
+/** MITRE ATLAS + ASI tags from ingest fields, with detector fallback. */
+export function eventTaxonomy(
+  e: Record<string, unknown>,
+  detectors: string[] = []
+): { mitre: string; asi: string } {
+  const mitreRaw = String(
+    e.mitre_atlas ?? e.mitre ?? e.atlas ?? e.mitre_atlas_mapping ?? ""
+  ).trim();
+  const asiRaw = String(e.asi_code ?? e.asi ?? "").trim();
+  const inferred = inferTaxonomy(
+    `${e.category ?? ""} ${e.tool_name ?? ""} ${detectors.join(" ")}`
+  );
+  const mitre = mitreRaw
+    ? (mitreRaw.match(/AML\.[A-Z]\d+/i)?.[0] ?? mitreRaw)
+    : inferred.mitre;
+  const asi = asiRaw || inferred.asi;
+  return { mitre: mitre || "—", asi: asi || "—" };
+}
 
 function eventAgeSec(ts: string, now = Date.now()): number | null {
   const t = Date.parse(ts);
@@ -370,6 +406,7 @@ export function buildLiveMonitorEventRows(
       severity: String(e.severity ?? "").toUpperCase() || (risk >= 80 ? "CRITICAL" : risk >= 60 ? "HIGH" : risk >= 40 ? "MEDIUM" : "LOW"),
       detectors: dets.slice(0, 6),
       outcome: verdictToOutcome(verdict, risk),
+      ...eventTaxonomy(e, dets),
     };
   });
 }
@@ -404,7 +441,7 @@ export function deriveLiveResearchAnalytics(
       eventRows: [],
       sessionCount: 0,
       latestAgeSec: null,
-      finding: "Nothing is flowing yet. Run a quick probe above, or start a campaign — activity will appear here as it arrives.",
+      finding: "No live activity yet.",
       posture: "empty",
     };
   }

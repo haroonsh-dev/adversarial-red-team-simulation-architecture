@@ -10,9 +10,11 @@ from src.core.auth_credentials import (
     resolve_credentials,
 )
 from src.core.config import settings
+from src.api.middleware.auth import is_public_path
 from src.core.rbac import is_allowed, normalize_path
 
 _PUBLIC_PATHS = {
+    "/",
     "/health",
     "/ready",
     "/config/me",
@@ -35,7 +37,7 @@ class RBACMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = normalize_path(request.url.path)
-        if path in _PUBLIC_PATHS:
+        if path in _PUBLIC_PATHS or is_public_path(request.url.path):
             return await call_next(request)
 
         if not settings.auth_required and not any_static_api_key_configured() and not settings.ARTSA_OIDC_ENABLED:

@@ -33,6 +33,8 @@ interface LiveTelemetryStreamProps {
   highlightSessionId?: string;
   /** Custom navigation per row (e.g. replay deep link). Defaults to /logs when omitted. */
   getEventHref?: (event: TelemetryEvent) => string | undefined;
+  /** Select row without navigation — SOC inline forensics */
+  onSelectEvent?: (event: TelemetryEvent) => void;
 }
 
 export function LiveTelemetryStream({
@@ -44,6 +46,7 @@ export function LiveTelemetryStream({
   interactive = true,
   highlightSessionId,
   getEventHref,
+  onSelectEvent,
 }: LiveTelemetryStreamProps) {
   const router = useRouter();
   const streamItems = events.length ? [...events].slice(-50).reverse() : [];
@@ -77,10 +80,10 @@ export function LiveTelemetryStream({
               String(evt.triggered_at ?? "") ||
               String(evt.ts ?? "");
             const sessionId = String(evt.session_id ?? "");
-            const highlighted =
+            const selected =
               highlightSessionId && sessionId && sessionId === highlightSessionId;
             const href =
-              interactive
+              interactive && !onSelectEvent
                 ? getEventHref?.(evt) ??
                   (sessionId ? `/replay?session=${encodeURIComponent(sessionId)}` : "/logs")
                 : undefined;
@@ -88,12 +91,19 @@ export function LiveTelemetryStream({
               <button
                 type="button"
                 key={stableKey || i}
-                disabled={!interactive || !href}
-                onClick={() => href && router.push(href)}
+                disabled={!interactive}
+                onClick={() => {
+                  if (onSelectEvent) {
+                    onSelectEvent(evt);
+                    return;
+                  }
+                  if (href) router.push(href);
+                }}
                 className={cn(
                   "interactive-row flex w-full items-center justify-between gap-3 rounded-md border-b border-border/40 px-3 py-2.5 text-left font-mono text-xs last:border-0",
-                  interactive && href && "cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none",
-                  highlighted && "bg-muted/40 ring-1 ring-inset ring-foreground/10"
+                  interactive && "cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none",
+                  selected && "bg-primary/10 ring-1 ring-inset ring-primary/30",
+                  !selected && interactive && "hover:bg-muted/40"
                 )}
               >
                 <div className="min-w-0 truncate">

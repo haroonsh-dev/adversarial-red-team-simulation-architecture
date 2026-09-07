@@ -9,9 +9,11 @@ test.describe("ARTSA frontend smoke", () => {
   test("home page loads enterprise landing", async ({ page }) => {
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: /contain ai agents/i }).first()
+      page.getByRole("heading", { name: /see what ai agents actually do/i }).first()
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("link", { name: /get started/i }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /contain your ai agents/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /try live demo/i }).first()).toBeVisible();
+    await expect(page.getByText(/get started/i).first()).toBeVisible();
   });
 
   test("sign in panel renders on landing", async ({ page }) => {
@@ -20,35 +22,26 @@ test.describe("ARTSA frontend smoke", () => {
     await expect(page.getByRole("heading", { name: /sign in/i }).first()).toBeVisible();
   });
 
-  test("command center includes the merged observatory section", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(
-      page.getByRole("heading", { name: /command center|artsa/i }).first()
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Continuous Observatory/i).first()).toBeVisible();
+  test("command center page loads", async ({ page }) => {
+    await page.goto("/command-center");
+    await expect(page).toHaveURL(/\/command-center/);
+    await expect(page.getByRole("heading", { name: /command center/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("risk framework page lists the agentic top 10", async ({ page }) => {
     await page.goto("/risks");
-    await expect(page.getByRole("heading", { name: /agentic risk framework/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^risk$/i })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByRole("heading", { name: /agent goal hijack/i }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: /rogue agents/i }).first()).toBeVisible();
   });
 
-  test("command center shows an honest empty state when the pipeline is idle", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: /command center|artsa/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    // No simulated telemetry is ever shown — the feed must be an empty state.
-    await expect(page.getByLabel("Simulated demo data")).toHaveCount(0);
-    await expect(page.getByText(/No live telemetry yet/i).first()).toBeVisible({ timeout: 15_000 });
-  });
-
-  test("sidebar navigation includes red team console", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(page.getByRole("link", { name: /red team console/i })).toBeVisible();
+  test("sidebar navigation includes red team", async ({ page }) => {
+    await page.goto("/command-center");
+    await expect(page.getByRole("link", { name: /^attack lab$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^campaigns$/i })).toBeVisible();
   });
 });

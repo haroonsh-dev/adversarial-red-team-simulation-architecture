@@ -36,45 +36,45 @@ export function deriveRedTeamServiceReady(input: {
   const checks: ReadyCheck[] = [
     {
       id: "service",
-      label: "Connected",
+      label: "ARTSA service",
       ok: input.apiOnline,
       detail: input.apiOnline
-        ? "ARTSA is online"
-        : "ARTSA is offline — start the service first",
+        ? "API is reachable"
+        : "Service offline — start the API before sharing access",
       href: "/get-started",
-      cta: "Get started",
+      cta: "Open Get Started",
     },
     {
       id: "provider",
-      label: "Your AI connected",
+      label: "Target provider",
       ok: providersOk,
       detail: input.providersLoading
-        ? "Checking…"
+        ? "Checking providers…"
         : providersOk
-          ? "Ready to test against your AI"
-          : "Connect your AI model so full tests can run",
+          ? `${input.providerCount} provider${input.providerCount === 1 ? "" : "s"} ready for real runs`
+          : "Add a model provider — campaigns cannot start without one",
       href: "/settings/integrations",
-      cta: "Connect AI",
+      cta: "Add provider",
     },
     {
       id: "traffic",
-      label: "Activity seen",
+      label: "Live traffic",
       ok: trafficOk,
       detail: trafficOk
-        ? `${input.liveEventCount} result${input.liveEventCount === 1 ? "" : "s"} so far`
-        : "No results yet — try one message in Attack Lab",
+        ? `${input.liveEventCount} live event${input.liveEventCount === 1 ? "" : "s"} seen`
+        : "No agent traffic yet — run a check in Attack Lab or send traffic from a customer app",
       href: "/red-team/lab",
-      cta: "Try once",
+      cta: "Run a check",
     },
     {
       id: "campaign",
-      label: "Full test done",
+      label: "Campaign run",
       ok: campaignOk,
       detail: campaignOk
-        ? `${input.campaignCount} test${input.campaignCount === 1 ? "" : "s"} on record`
-        : "No full tests yet — start one when you’re ready",
+        ? `${input.campaignCount} campaign${input.campaignCount === 1 ? "" : "s"} on record`
+        : "No campaign yet — start one to prove multi-round scoring",
       href: "/red-team/campaigns/new",
-      cta: "Start a test",
+      cta: "Start campaign",
     },
   ];
 
@@ -84,13 +84,13 @@ export function deriveRedTeamServiceReady(input: {
 
   let summary: string;
   if (shareReady) {
-    summary = "You’re set — ARTSA is connected, your AI is linked, and you’ve already run a test.";
+    summary = "Ready to share — service, target, and real traffic or campaigns are in place.";
   } else if (canRun) {
-    summary = "You’re ready to test. Try one message or start a full safety test.";
+    summary = "You can run attacks now. Add a check or campaign before handing the API to a customer.";
   } else if (!input.apiOnline) {
-    summary = "ARTSA isn’t connected yet. Start the service first.";
+    summary = "Service is offline. Bring the API up first.";
   } else {
-    summary = "Connect your AI under Settings so full tests can run for real.";
+    summary = "Add a target provider so lab and campaign runs hit a real model — not a dry UI.";
   }
 
   return {

@@ -158,7 +158,7 @@ export function SituationAutoPanel({
 
         <Button type="button" size="sm" onClick={() => void run()} disabled={loading || !message.trim()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {loading ? "Classifying…" : "Auto-classify & score"}
+          {loading ? "Checking…" : "Check this message"}
         </Button>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}

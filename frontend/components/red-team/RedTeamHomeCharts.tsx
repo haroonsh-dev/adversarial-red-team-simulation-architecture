@@ -147,7 +147,7 @@ export function RedTeamHomeCharts({
         {campaignRisk.length > 0 ? (
           <div className="max-h-[360px] overflow-y-auto rounded-md border border-border/60">
             <table className="w-full min-w-[520px] text-left text-[12px]">
-              <thead className="sticky top-0 z-[1] border-b border-border bg-[#0c0c0c] text-[10px] uppercase tracking-wide text-muted-foreground">
+              <thead className="sticky top-0 z-[1] border-b border-border bg-muted text-[10px] uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium">Campaign</th>
                   <th className="px-3 py-2 font-medium">Status</th>
@@ -167,7 +167,7 @@ export function RedTeamHomeCharts({
                       : row.risk >= 50
                         ? "bg-[hsl(var(--severity-medium))]"
                         : running
-                          ? "bg-[#6798ff]"
+                          ? "bg-[#67b3ef]"
                           : "bg-[hsl(var(--severity-low))]";
                   return (
                     <tr key={row.id} className="hover:bg-muted/20">
@@ -190,7 +190,7 @@ export function RedTeamHomeCharts({
                             failed
                               ? "font-mono text-[10px] uppercase text-[hsl(var(--severity-critical))]"
                               : running
-                                ? "font-mono text-[10px] uppercase text-[#6798ff]"
+                                ? "font-mono text-[10px] uppercase text-[#67b3ef]"
                                 : "font-mono text-[10px] uppercase text-muted-foreground"
                           }
                         >

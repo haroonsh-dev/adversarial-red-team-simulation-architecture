@@ -67,79 +67,114 @@ export const READINESS_UI = {
 /** Command Center — integration visibility */
 export const COMMAND_CENTER_UI = {
   pageDescription:
-    "Mission graph of agent blast radius — live risk, containment verdicts, and investigate-on-select.",
-  integrationActivity: "Integration activity",
+    "See live risk, what ARTSA decided, and click anything to inspect.",
+  integrationActivity: "App activity",
   integrationActivityHint:
-    "Live screening results when your agents send tool calls — not outbound alert webhooks.",
-  latestResponse: "Latest response from your integration",
-  waitingForTraffic: "No integration traffic yet",
+    "Results when your agents send actions to ARTSA — not alerts going out to Slack.",
+  latestResponse: "Latest response from your app",
+  waitingForTraffic: "No app activity yet",
   waitingHint:
-    "Connect your agents in Settings, or send a test event from Get Started. Each tool call shows how ARTSA responded.",
-  guardConnected: "Guard API online",
-  guardOffline: "Guard offline",
+    "Connect your agents in Settings, or send a test from Get Started. Each action shows how ARTSA responded.",
+  guardConnected: "ARTSA is online",
+  guardOffline: "ARTSA is offline",
   liveFeed: "Live feed connected",
-  liveFeedPolling: "Live feed — polling backup",
-  eventsScreened: "Events screened",
+  liveFeedPolling: "Live feed — backup refresh",
+  eventsScreened: "Events checked",
   activeSessions: "Active sessions",
   viewFullLog: "Full activity log",
-  connectIntegration: "Connect integration",
-  manageIntegrations: "Manage integrations",
-  outboundConnected: "Outbound alerts connected",
-  waitingForIngest: "Send agent traffic to see responses here",
+  connectIntegration: "Connect your app",
+  manageIntegrations: "Manage connections",
+  outboundConnected: "Outgoing alerts connected",
+  waitingForIngest: "Send agent activity to see results here",
   outboundVsIngestNote:
-    "Slack and webhooks send alerts out when risks happen. This panel shows what happened when agent traffic came in.",
-  sendTestEvent: "Send test event",
-  liveFeedNoEvents: "Socket open · waiting for traffic",
-  liveFeedActive: "Live feed · receiving events",
-  ingestEndpointTitle: "Where external systems send traffic",
+    "Slack and similar tools send alerts out when something is risky. This panel shows what happened when activity came in from your agents.",
+  sendTestEvent: "Send a test",
+  liveFeedNoEvents: "Connected · waiting for activity",
+  liveFeedActive: "Live · receiving events",
+  ingestEndpointTitle: "Where your app sends activity",
   ingestEndpointHint:
-    "External agents send tool calls here. Your admin configures the API key in connection settings.",
-  ingestKeyMissing: "ARTSA API key not set on server — ingest may be rejected",
-  ingestKeyOk: "Server API key configured",
-  testIngestNow: "Test ingest from dashboard",
-  testIngestOk: "Ingest works — check Latest response above",
-  testIngestFailed: "Ingest failed — check API key and backend logs",
-  inboundTitle: "Inbound — agent traffic into ARTSA",
-  inboundDetail: "Agent tool calls into ARTSA — powers Command Center and the activity log.",
-  outboundTitle: "Outbound — alerts to your systems",
-  outboundDetail: "Slack, webhooks, Custom Outbound. Sends alerts out; does not ingest traffic.",
-  sendSampleAlert: "Send sample to your URL",
-  ragGuide: "RAG + Astra guide",
-  getStarted: "Run readiness test",
+    "Your agents send each action here. Your admin sets the access key in connection settings.",
+  ingestKeyMissing: "ARTSA access key is not set on the server — requests may be rejected",
+  ingestKeyOk: "Server access key is set",
+  testIngestNow: "Send a test from this page",
+  testIngestOk: "Test worked — check Latest response above",
+  testIngestFailed: "Test failed — check the access key and server logs",
+  inboundTitle: "Incoming — activity from your agents",
+  inboundDetail: "When agents send actions to ARTSA, they show up here and in the activity log.",
+  outboundTitle: "Outgoing — alerts to your systems",
+  outboundDetail: "Slack and similar tools send alerts out. They do not bring traffic in.",
+  sendSampleAlert: "Send a sample to your URL",
+  ragGuide: "Document search guide",
+  getStarted: "Run the setup check",
   agent: "Agent",
-  toolCall: "Tool call",
+  toolCall: "Action",
   session: "Session",
   recentResponses: "Recent responses",
-  sampleAlertDispatched: "Sample alert sent to your URL (outbound only)",
+  sampleAlertDispatched: "Sample alert sent to your URL (outgoing only)",
+  noLiveTelemetryYet: "No live activity yet",
+  noLiveTelemetryHint:
+    "Connect agents or send a test — results appear here as they arrive.",
+} as const;
+
+/** Command Center — what data you are looking at */
+export const DATA_SOURCE_UI = {
+  title: {
+    offline: "ARTSA is offline",
+    no_traffic: "No agent activity yet",
+    live_ingest: "Live — activity from your app",
+    session_history: "Saved sessions — not live",
+    test_stream: "Demo stream — not your application",
+    test_only: "Test events only — not your application",
+    mixed: "Mixed — tests plus real activity",
+  },
+  detail: {
+    offline: "Nothing is being checked until ARTSA is running.",
+    no_traffic:
+      "Connecting an AI key or alert channel does not import your app. Your agents must send each action to ARTSA.",
+    live_ingest: "These events are from your connected agents. Scores and decisions are real.",
+    session_history: "Showing saved sessions while waiting for new live activity.",
+    test_stream:
+      "The demo stream sends sample actions through the real engine. Turn it off to see only your app.",
+    test_only:
+      "These rows are from in-product tests. Real app traffic uses your own agent names, not the demo agents.",
+    mixed: "Some events are tests. Search the log for your real agent name to isolate live traffic.",
+  },
+  llmOrOutboundNote:
+    "Your connected AI key or alert channel is for attack tests or outgoing alerts — it does not pull your app’s traffic onto this screen.",
+  wireIngestLink: "Connect your app →",
+  llmProviderWizardNote:
+    "Used for attack tests — ARTSA calls your model. It does not read or analyze your application’s live traffic.",
+  alertWizardNote:
+    "Sends alerts to your URL when risks are found. Does not import traffic into Command Center.",
 } as const;
 
 export const INTEGRATION_UI = {
-  sendSampleToUrl: "Send sample to your URL",
+  sendSampleToUrl: "Send a sample to your URL",
   sampleSent: "Sample sent to your URL",
-  testProvider: "Test LLM",
-  inboundTab: "Inbound (agent traffic)",
-  outboundTab: "Outbound (alerts)",
+  testProvider: "Test AI provider",
+  inboundTab: "Incoming (agent activity)",
+  outboundTab: "Outgoing (alerts)",
 } as const;
 
 export const INTEGRATION_HEALTH_UI = {
-  title: "Integration health",
-  subtitle: "Agent traffic powers Command Center. Outbound channels only send alerts to your systems.",
-  apiOnline: "Guard API connected",
-  apiOffline: "Guard API offline",
-  trafficSeen: "Agent traffic received — Command Center is live",
-  noTrafficYet: "No agent traffic yet — send a test event from Get Started",
-  wsLive: "Live WebSocket feed connected",
-  wsPolling: "Polling backup — events still appear after ingest",
-  outboundOptional: "No outbound channels — optional for SOC alerts",
+  title: "Connection health",
+  subtitle: "Agent activity powers Command Center. Outgoing channels only send alerts to your systems.",
+  apiOnline: "ARTSA is connected",
+  apiOffline: "ARTSA is offline",
+  trafficSeen: "Agent activity received — Command Center is live",
+  noTrafficYet: "No agent activity yet — send a test from Get Started",
+  wsLive: "Live feed connected",
+  wsPolling: "Backup refresh — events still appear after you send activity",
+  outboundOptional: "No outgoing channels — optional for team alerts",
   outboundReminder:
-    "Testing outbound sends a sample alert to your URL. It does not populate Command Center.",
+    "Testing outgoing alerts sends a sample to your URL. It does not fill Command Center.",
 } as const;
 
 export const INGEST_UI = {
-  copyCurl: "Copy ingest curl",
+  copyCurl: "Copy send command",
   copied: "Copied",
-  wireTitle: "Wire production ingest",
-  wireHint: "Send agent tool calls through ingest. Events appear in Command Center and the activity log.",
+  wireTitle: "Connect production",
+  wireHint: "Send agent actions through ARTSA. They appear in Command Center and the activity log.",
 } as const;
 
 export const CONNECTION_UI = {
@@ -154,11 +189,11 @@ export const CONNECTION_UI = {
 
 /** Reuse for inline errors when fetch fails because API is down */
 export const API_UNAVAILABLE = {
-  short: "ARTSA API unavailable",
-  hint: "Check that your ARTSA deployment is running, then refresh this page.",
-  scan: "Scan couldn't run — ARTSA API unavailable.",
-  sandbox: "Evaluation couldn't run — ARTSA API unavailable.",
-  rag: "RAG scan couldn't run — ARTSA API unavailable.",
+  short: "ARTSA is unavailable",
+  hint: "Check that ARTSA is running, then refresh this page.",
+  scan: "Scan couldn’t run — ARTSA is unavailable.",
+  sandbox: "Check couldn’t run — ARTSA is unavailable.",
+  rag: "Document scan couldn’t run — ARTSA is unavailable.",
 } as const;
 
 export const SANDBOX_UI = {
@@ -180,20 +215,20 @@ export const COACHMARK_UI = {
 export const EMPTY_STATE_UI = {
   allClearTitle: "All clear",
   allClearDescription:
-    "No risky sessions in live telemetry. Connect agents or run a red-team scan to generate activity.",
+    "No risky sessions right now. Connect agents or run an attack test to generate activity.",
   noRiskTrendTitle: "No trends yet",
   noRiskTrendDescription:
-    "Risk charts populate from live ingest events and completed scans — none recorded yet.",
+    "Risk charts fill in as live events and completed tests arrive.",
   noActivityTitle: "No activity yet",
-  noActivityDescription: "When agents connect and emit tool calls, screened events appear here.",
+  noActivityDescription: "When agents send actions, checked events appear here.",
   noTopologyTitle: "No agent map yet",
   noTopologyDescription:
-    "Topology builds from live session telemetry. Connect agents or ingest tool-call traffic.",
+    "The map builds from live sessions. Connect agents or send a test.",
   noAnalyticsTitle: "No analytics yet",
   noAnalyticsDescription:
-    "Analytics require live events or completed red-team scans. Nothing to chart yet.",
+    "Charts need live events or completed attack tests. Nothing to show yet.",
   openSetup: "Open setup guide",
-  runWargame: "Launch wargame",
+  runWargame: "Run an attack test",
   viewCommandCenter: "Command Center",
 } as const;
 

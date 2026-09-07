@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ShieldAlert, Search, Crosshair, ScrollText, BookOpen } from "lucide-react";
+import { ShieldAlert, Search, Crosshair, ScrollText } from "lucide-react";
 import {
   CATEGORY_LABELS,
   DEFENSE_LAYER_LABELS,
@@ -20,19 +20,9 @@ import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type SeverityFilter = "ALL" | AgenticRisk["severity"];
-
-function formatGeneratedAt(value: string | null | undefined): string | null {
-  if (!value) return null;
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return null;
-  }
-}
 
 function SeverityChip({
   label,
@@ -67,12 +57,10 @@ function RiskListRow({
   risk,
   selected,
   onSelect,
-  index,
 }: {
   risk: AgenticRisk;
   selected: boolean;
   onSelect: () => void;
-  index: number;
 }) {
   return (
     <button
@@ -92,10 +80,10 @@ function RiskListRow({
         <p className="truncate text-sm font-medium">{risk.name}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <SeverityBadge severity={risk.severity} />
-          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-            {risk.live_events} evt · {risk.blocked_events} blocked
+          <span className="text-[12px] text-muted-foreground tabular-nums">
+            {risk.live_events} seen · {risk.blocked_events} stopped
             {risk.breached_events > 0 && (
-              <span className="text-severity-critical"> · {risk.breached_events} breached</span>
+              <span className="text-severity-critical"> · {risk.breached_events} got through</span>
             )}
           </span>
         </div>
@@ -105,13 +93,15 @@ function RiskListRow({
 }
 
 function RiskDetail({ risk }: { risk: AgenticRisk }) {
-  const primaryCategory = risk.attack_categories[0];
+  const categories = risk.attack_categories
+    .map((c) => CATEGORY_LABELS[c] ?? c)
+    .filter(Boolean);
 
   return (
     <div key={risk.id} className="flex h-full flex-col">
       <div className="border-b border-border px-5 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">#{risk.rank}</span>
+          <span className="text-xs text-muted-foreground">#{risk.rank}</span>
           <SeverityBadge severity={risk.severity} />
         </div>
         <h2 className="mt-2 text-base font-semibold leading-snug sm:text-lg">{risk.name}</h2>
@@ -121,17 +111,17 @@ function RiskDetail({ risk }: { risk: AgenticRisk }) {
       <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Events</dt>
+            <dt className="text-[12px] text-muted-foreground">Seen</dt>
             <dd className="mt-1 font-mono text-lg font-semibold tabular-nums">{risk.live_events}</dd>
           </div>
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Blocked</dt>
+            <dt className="text-[12px] text-muted-foreground">Stopped</dt>
             <dd className="mt-1 font-mono text-lg font-semibold tabular-nums text-status-success">
               {risk.blocked_events}
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Breached</dt>
+            <dt className="text-[12px] text-muted-foreground">Got through</dt>
             <dd
               className={cn(
                 "mt-1 font-mono text-lg font-semibold tabular-nums",
@@ -142,39 +132,34 @@ function RiskDetail({ risk }: { risk: AgenticRisk }) {
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Max score</dt>
+            <dt className="text-[12px] text-muted-foreground">Highest risk</dt>
             <dd className="mt-1 font-mono text-lg font-semibold tabular-nums text-muted-foreground">
-              {Number.isFinite(risk.max_risk_score) ? risk.max_risk_score.toFixed(1) : "—"}
+              {Number.isFinite(risk.max_risk_score) ? `${Math.round(risk.max_risk_score)}/100` : "—"}
             </dd>
           </div>
         </dl>
 
         <div className="mt-6 space-y-5">
-          <div>
-            <h3 className="text-xs font-medium text-foreground">Attack categories</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {risk.attack_categories.map((c) => `${c} — ${CATEGORY_LABELS[c] ?? c}`).join("; ")}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-medium text-foreground">Defense layers</h3>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              {risk.defense_layers.map((layer) => (
-                <li key={layer}>{DEFENSE_LAYER_LABELS[layer] ?? layer}</li>
-              ))}
-            </ul>
-          </div>
-
-          {risk.detectors.length > 0 && (
+          {categories.length > 0 ? (
             <div>
-              <h3 className="text-xs font-medium text-foreground">Detectors</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{risk.detectors.join(", ")}</p>
+              <h3 className="text-sm font-medium text-foreground">Kinds of attack</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{categories.join(", ")}</p>
             </div>
-          )}
+          ) : null}
+
+          {risk.defense_layers.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-medium text-foreground">How ARTSA stops it</h3>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                {risk.defense_layers.map((layer) => (
+                  <li key={layer}>{DEFENSE_LAYER_LABELS[layer] ?? layer}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div>
-            <h3 className="text-xs font-medium text-foreground">Mitigations</h3>
+            <h3 className="text-sm font-medium text-foreground">What to do</h3>
             <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
               {risk.mitigations.map((m) => (
                 <li key={m} className="leading-relaxed">{m}</li>
@@ -186,25 +171,17 @@ function RiskDetail({ risk }: { risk: AgenticRisk }) {
 
       <div className="flex flex-wrap gap-2 border-t border-border px-5 py-4 sm:px-6">
         <Button asChild size="sm">
-          <Link href="/sandbox">
-            <Crosshair className="h-3.5 w-3.5" aria-hidden />
-            Sandbox
+          <Link href="/logs">
+            <ScrollText className="h-3.5 w-3.5" aria-hidden />
+            See matching activity
           </Link>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link href="/logs">
-            <ScrollText className="h-3.5 w-3.5" aria-hidden />
-            Logs
+          <Link href="/sandbox">
+            <Crosshair className="h-3.5 w-3.5" aria-hidden />
+            Try this attack
           </Link>
         </Button>
-        {primaryCategory && (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/library?category=${encodeURIComponent(primaryCategory)}`}>
-              <BookOpen className="h-3.5 w-3.5" aria-hidden />
-              {primaryCategory}
-            </Link>
-          </Button>
-        )}
       </div>
     </div>
   );
@@ -298,13 +275,16 @@ export default function RiskFrameworkPage() {
   const highCount = framework.filter((r) => r.severity === "HIGH").length;
   const mediumCount = framework.filter((r) => r.severity === "MEDIUM").length;
   const lowCount = framework.filter((r) => r.severity === "LOW").length;
-  const generatedLabel = formatGeneratedAt(data?.generated_at);
+  const seen = framework.reduce((sum, r) => sum + r.live_events, 0);
+  const stopped = framework.reduce((sum, r) => sum + r.blocked_events, 0);
+  const slipped = framework.reduce((sum, r) => sum + r.breached_events, 0);
+  const peak = framework.reduce((max, r) => Math.max(max, r.max_risk_score || 0), 0);
 
   return (
     <PageStack>
       <PageHeader
-        title="Agentic Risk Framework"
-        description="OWASP Agentic AI Top 10 with live counts from screened agent activity."
+        title="Risk"
+        description="The ten risks ARTSA watches, with live counts from what it has already checked."
         icon={<ShieldAlert className="h-5 w-5" />}
         badge={<LiveIndicator connected={apiOnline && wsConnected} className="meta-badge" />}
       />
@@ -315,23 +295,28 @@ export default function RiskFrameworkPage() {
         <EmptyState
           icon={ShieldAlert}
           title="Risk framework unavailable"
-          description="Could not load framework data. Verify the containment API is running."
+          description="Could not load this list. Check that ARTSA is running."
         />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Critical" value={criticalCount} severity="CRITICAL" variant="compact" />
-            <StatCard label="High" value={highCount} severity="HIGH" variant="compact" />
-            <StatCard label="Medium" value={mediumCount} severity="MEDIUM" variant="compact" />
-            <StatCard label="Low" value={lowCount} severity="LOW" variant="compact" />
+            <StatCard label="Seen" value={data?.total_events ?? seen} variant="compact" />
+            <StatCard label="Stopped" value={stopped} variant="compact" />
+            <StatCard
+              label="Got through"
+              value={slipped}
+              severity={slipped > 0 ? "CRITICAL" : undefined}
+              variant="compact"
+            />
+            <StatCard
+              label="Highest risk"
+              value={peak > 0 ? `${Math.round(peak)}/100` : "—"}
+              variant="compact"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <p className="mr-2 text-xs text-muted-foreground">
-              {framework.length} risks ·{" "}
-              {data?.total_events ?? framework.reduce((a, r) => a + r.live_events, 0)} events
-              {generatedLabel ? ` · ${generatedLabel}` : ""}
-            </p>
+            <p className="mr-2 text-[13px] text-muted-foreground">Filter by severity</p>
             <SeverityChip
               label="All"
               count={framework.length}
@@ -378,22 +363,13 @@ export default function RiskFrameworkPage() {
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search…"
+                    placeholder="Search risks"
                     aria-label="Search risks"
                     className="pl-9"
                   />
                 </div>
-                <Tabs value={severity} onValueChange={(v) => setSeverity(v as SeverityFilter)}>
-                  <TabsList className="h-8 w-full justify-start overflow-x-auto">
-                    <TabsTrigger value="ALL" className="text-xs">All</TabsTrigger>
-                    <TabsTrigger value="CRITICAL" className="text-xs">C ({criticalCount})</TabsTrigger>
-                    <TabsTrigger value="HIGH" className="text-xs">H ({highCount})</TabsTrigger>
-                    <TabsTrigger value="MEDIUM" className="text-xs">M ({mediumCount})</TabsTrigger>
-                    <TabsTrigger value="LOW" className="text-xs">L ({lowCount})</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <p className="text-[11px] text-muted-foreground">
-                  {visible.length} of {framework.length} shown · ↑↓ to navigate
+                <p className="text-[12px] text-muted-foreground">
+                  {visible.length} of {framework.length} shown
                 </p>
               </div>
 
@@ -419,11 +395,10 @@ export default function RiskFrameworkPage() {
                   role="listbox"
                   aria-label="Risks"
                 >
-                  {visible.map((risk, index) => (
+                  {visible.map((risk) => (
                     <RiskListRow
                       key={risk.id}
                       risk={risk}
-                      index={index}
                       selected={selected?.id === risk.id}
                       onSelect={() => setSelectedId(risk.id)}
                     />

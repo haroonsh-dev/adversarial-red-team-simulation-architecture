@@ -250,9 +250,12 @@ class ContainmentEngine:
         is_benign, benign_reason = self._is_benign_content_mention(event)
 
         for detector in self.detectors:
+            if detector.name == "ToolOutputScanner" and event.response is None:
+                continue
             sec_evt = detector.detect(event)
             if sec_evt:
-                if is_benign:
+                fail_closed = bool((sec_evt.evidence or {}).get("fail_closed"))
+                if is_benign and not fail_closed:
                     # Downgrade every signal from a benign content mention to
                     # below the enforcement threshold (QUARANTINE >= 50), so
                     # legitimate work is surfaced in events/alerts but never

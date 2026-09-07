@@ -554,7 +554,7 @@ export function OnboardingHub(props: {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="gap-2">
-                  <Link href="/dashboard">
+                  <Link href="/command-center">
                     <LayoutDashboard className="h-4 w-4" />
                     Command Center
                   </Link>

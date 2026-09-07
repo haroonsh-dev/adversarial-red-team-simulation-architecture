@@ -1,11 +1,12 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { motion, type HTMLMotionProps } from "framer-motion";
 import { cardHover, easeOut } from "@/lib/motionPresets";
 import { cn } from "@/lib/utils";
 
-interface MotionCardProps extends HTMLMotionProps<"div"> {
+interface MotionCardProps extends Omit<HTMLMotionProps<"div">, "children"> {
+  children?: ReactNode;
   /** Hover lift — off by default (app chrome stays still; landing uses LandingMotionCard). */
   hover?: boolean;
   /** Enter fade — off by default for denser, calmer product UI. */

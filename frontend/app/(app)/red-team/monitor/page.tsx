@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Area,
   Bar,
@@ -16,8 +17,9 @@ import {
   YAxis,
 } from "recharts";
 import { LandingMotionCard } from "@/components/landing/LandingMotionCard";
-import { RedTeamGlossary } from "@/components/red-team/RedTeamGlossary";
+import { RedTeamGlossaryHelp } from "@/components/red-team/RedTeamGlossary";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CHART_AXIS_TICK,
   CHART_CRITICAL,
@@ -51,7 +53,10 @@ function ageLabel(sec: number | null): string {
 }
 
 /** Live Monitor — real ingest + campaigns, full blotter, deep analysis. */
-export default function MonitorIndexPage() {
+type SeverityFilter = "all" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+
+function MonitorIndexPage() {
+  const searchParams = useSearchParams();
   const { campaigns, loading } = useCampaigns();
   const { liveEvents, connected, metrics, pullTelemetryRecent } = useDashboardMetrics();
   const { apiOnline, wsConnected } = useConnection();
@@ -61,9 +66,25 @@ export default function MonitorIndexPage() {
   const [desk, setDesk] = useState<"traffic" | "campaigns">("traffic");
   const [deskPicked, setDeskPicked] = useState(false);
   const [windowFilter, setWindowFilter] = useState<LiveMonitorWindow>("all");
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [, setTick] = useState(0);
 
-  // Keep “age” labels live without inventing data.
+  const agentQuery = searchParams.get("agent")?.trim().toLowerCase();
+  const asiQuery = searchParams.get("asi")?.trim().toUpperCase();
+
+  useEffect(() => {
+    const q = searchParams.get("severity")?.toUpperCase();
+    const ag = searchParams.get("agent");
+    const as = searchParams.get("asi");
+    if (q === "CRITICAL" || q === "HIGH" || q === "MEDIUM" || q === "LOW") {
+      setSeverityFilter(q);
+      setDesk("traffic");
+      setDeskPicked(true);
+    } else if (ag || as) {
+      setDesk("traffic");
+      setDeskPicked(true);
+    }
+  }, [searchParams]);
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 2000);
     return () => window.clearInterval(id);
@@ -112,20 +133,35 @@ export default function MonitorIndexPage() {
     [overview.campaignRisk]
   );
 
+  const blotterRows = useMemo(() => {
+    let rows = research.eventRows;
+    if (severityFilter !== "all") {
+      rows = rows.filter((r) => r.severity === severityFilter);
+    }
+    if (agentQuery) {
+      rows = rows.filter((r) => r.agent.toLowerCase().includes(agentQuery));
+    }
+    if (asiQuery) {
+      rows = rows.filter((r) => r.asi.toUpperCase().includes(asiQuery));
+    }
+    return rows;
+  }, [research.eventRows, severityFilter, agentQuery, asiQuery]);
+
   const selected =
-    research.eventRows.find((r) => r.id === selectedId) ?? research.eventRows[0] ?? null;
+    blotterRows.find((r) => r.id === selectedId) ?? blotterRows[0] ?? null;
 
   useEffect(() => {
-    if (research.eventRows[0] && !selectedId) {
-      setSelectedId(research.eventRows[0].id);
+    if (blotterRows[0] && !blotterRows.some((r) => r.id === selectedId)) {
+      setSelectedId(blotterRows[0].id);
     }
-  }, [research.eventRows, selectedId]);
+  }, [blotterRows, selectedId]);
 
   const live = apiOnline && (connected || wsConnected);
   const riskSpark = windowedEvents
     .slice(0, 32)
     .map((e) => Number(e.risk_score ?? 0))
     .reverse();
+  const sparkReady = windowedEvents.length >= 1;
 
   const refresh = async () => {
     setRefreshing(true);
@@ -151,7 +187,7 @@ export default function MonitorIndexPage() {
       });
     } else {
       const csv = rowsToCsv(
-        ["age_sec", "agent", "tool", "verdict", "risk", "action", "session", "detectors", "ts"],
+        ["age_sec", "agent", "tool", "verdict", "risk", "action", "session", "mitre", "asi", "detectors", "ts"],
         sample.map((r) => [
           r.ageSec ?? "",
           r.agent,
@@ -160,6 +196,8 @@ export default function MonitorIndexPage() {
           r.risk,
           r.action,
           r.session,
+          r.mitre,
+          r.asi,
           r.detectors.join("|"),
           r.ts,
         ])
@@ -196,11 +234,21 @@ export default function MonitorIndexPage() {
               text: "text-[hsl(var(--severity-low))]",
             };
 
+  const applySeverity = (next: SeverityFilter) => {
+    setSeverityFilter(next);
+    setDesk("traffic");
+    setDeskPicked(true);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (next === "all") url.searchParams.delete("severity");
+    else url.searchParams.set("severity", next);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}#live-activity`);
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Live transport status */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+    <div className="space-y-4">
+      <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 px-1 py-2 backdrop-blur">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 font-mono text-[11px]">
           <LivePill on={apiOnline} label="Connected" />
           <LivePill on={connected || wsConnected} label="Live feed" />
           <span className="text-muted-foreground">
@@ -208,27 +256,90 @@ export default function MonitorIndexPage() {
             {windowFilter !== "all" && liveEvents.length !== research.n
               ? `/${liveEvents.length}`
               : ""}{" "}
-            events · {research.sessionCount} sessions
-            {research.latestAgeSec != null ? ` · updated ${ageLabel(research.latestAgeSec)} ago` : ""}
-            {windowFilter !== "all" ? ` · window ${windowFilter}` : ""}
+            events
+            {live ? " · LIVE" : " · OFFLINE"}
           </span>
-          {live ? (
-            <span className="inline-flex items-center gap-1.5 text-primary">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inset-0 animate-ping rounded-full bg-primary/50" />
-                <span className="relative h-1.5 w-1.5 rounded-full bg-primary" />
-              </span>
-              LIVE
-            </span>
-          ) : (
-            <span className="text-muted-foreground">OFFLINE</span>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
           <div
-            className="flex flex-wrap gap-1 rounded-md border border-border bg-muted/30 p-1"
+            className="flex flex-wrap gap-1 rounded-md border border-border bg-muted/30 p-0.5"
+            role="tablist"
+            aria-label="Desk"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={desk === "traffic"}
+              onClick={() => {
+                setDesk("traffic");
+                setDeskPicked(true);
+              }}
+              className={cn(
+                "rounded-sm px-2 py-1 text-[11px] font-medium",
+                desk === "traffic" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              Traffic {research.n}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={desk === "campaigns"}
+              onClick={() => {
+                setDesk("campaigns");
+                setDeskPicked(true);
+              }}
+              className={cn(
+                "rounded-sm px-2 py-1 text-[11px] font-medium",
+                desk === "campaigns" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              )}
+            >
+              Campaigns {campaigns.length}
+            </button>
+          </div>
+          {desk === "traffic" ? (
+            <div
+              className="flex flex-wrap gap-1 rounded-md border border-border bg-muted/30 p-0.5"
+              role="group"
+              aria-label="Severity"
+            >
+              {(
+                [
+                  ["all", "All", research.n, null],
+                  ["CRITICAL", "Critical", sev.CRITICAL, "bg-[hsl(var(--severity-critical))]"],
+                  ["HIGH", "High", sev.HIGH, "bg-[hsl(var(--severity-high))]"],
+                  ["MEDIUM", "Medium", sev.MEDIUM, "bg-[hsl(var(--severity-medium))]"],
+                  ["LOW", "Low", sev.LOW, "bg-[hsl(var(--severity-low))]"],
+                ] as const
+              ).map(([id, label, count, dot]) => {
+                const active = severityFilter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => applySeverity(id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10px]",
+                      active
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {dot ? (
+                      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dot)} aria-hidden />
+                    ) : null}
+                    {label}
+                    <span className="tabular-nums">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div
+            className="flex gap-1 rounded-md border border-border bg-muted/30 p-0.5"
             role="group"
-            aria-label="Analysis window"
+            aria-label="Window"
           >
             {(
               [
@@ -243,7 +354,7 @@ export default function MonitorIndexPage() {
                 type="button"
                 onClick={() => setWindowFilter(id)}
                 className={cn(
-                  "rounded-sm px-2 py-1 font-mono text-[10px] transition-colors",
+                  "rounded-sm px-2 py-1 font-mono text-[10px]",
                   windowFilter === id
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -253,107 +364,36 @@ export default function MonitorIndexPage() {
               </button>
             ))}
           </div>
+          <RedTeamGlossaryHelp />
+          <Button size="sm" variant="outline" disabled={refreshing} onClick={() => void refresh()}>
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
           <Button
             size="sm"
             variant="outline"
             disabled={research.eventRows.length === 0}
             onClick={() => exportSample("csv")}
           >
-            Export CSV
+            Export
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={research.eventRows.length === 0}
-            onClick={() => exportSample("json")}
-          >
-            Export JSON
-          </Button>
-          <Button size="sm" variant="outline" disabled={refreshing} onClick={() => void refresh()}>
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </Button>
-          {preferred ? (
-            <Button size="sm" asChild>
-              <Link href={`/red-team/monitor/${preferred.id}?follow=1`}>
-                {running.length ? "Watch live run" : "Open run"}
-              </Link>
-            </Button>
-          ) : null}
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/red-team/monitor/live">Activity</Link>
-          </Button>
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/red-team/lab">Attack Lab</Link>
+          <Button size="sm" asChild>
+            {running.length && preferred ? (
+              <Link href={`/red-team/monitor/${preferred.id}?follow=1`}>Watch run</Link>
+            ) : (
+              <Link href="/red-team/lab">Attack Lab</Link>
+            )}
           </Button>
         </div>
       </div>
 
-      <div
-        className="flex flex-wrap gap-1 rounded-md border border-border bg-muted/30 p-1"
-        role="tablist"
-        aria-label="Monitor desk"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={desk === "traffic"}
-          onClick={() => {
-            setDesk("traffic");
-            setDeskPicked(true);
-          }}
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-[12px] font-medium transition-colors",
-            desk === "traffic"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Live traffic
-          <span className="ml-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {research.n}
-          </span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={desk === "campaigns"}
-          onClick={() => {
-            setDesk("campaigns");
-            setDeskPicked(true);
-          }}
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-[12px] font-medium transition-colors",
-            desk === "campaigns"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Campaigns
-          <span className="ml-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {campaigns.length}
-            {running.length ? ` · ${running.length} live` : ""}
-          </span>
-        </button>
-      </div>
-
-      <p className="text-[12px] text-muted-foreground">
-        {desk === "traffic"
-          ? "Agent ingest and checks — risk, tools, and verdicts as they arrive."
-          : "Wargame / lab runs — open a theater to follow rounds."}
-      </p>
-
-      <RedTeamGlossary />
-
       {desk === "traffic" ? (
-        <>
-      {/* Finding + spark + severity */}
-      <LandingMotionCard
+        <div className="space-y-4">
+          <LandingMotionCard instant
         index={0}
         glow={false}
         className={cn("overflow-hidden border p-4 sm:p-5", postureTone.border, postureTone.bg)}
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
-          <div className={cn("hidden w-1 shrink-0 rounded-full lg:block", postureTone.bar)} aria-hidden />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -371,91 +411,53 @@ export default function MonitorIndexPage() {
               </span>
             </div>
             <p className="mt-2 text-[15px] leading-relaxed text-foreground">{research.finding}</p>
-            {research.n === 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" asChild>
-                  <Link href="/red-team/lab">Open Attack Lab</Link>
-                </Button>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/red-team/campaigns/new">Start a campaign</Link>
-                </Button>
-                {campaigns.length > 0 ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setDesk("campaigns");
-                      setDeskPicked(true);
-                    }}
-                  >
-                    View campaigns
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
           </div>
           <div className="w-full shrink-0 rounded-md border border-border bg-card p-3 shadow-sm lg:w-[220px]">
             <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
               Risk spark · live
             </p>
-            <div className="mt-2 flex h-14 items-end gap-0.5 rounded-sm bg-muted/60 px-1 py-1">
-              {(riskSpark.length ? riskSpark : [0]).map((r, i) => {
-                const h = Math.max(6, Math.round((r / 100) * 48));
-                const tone =
-                  r >= 80
-                    ? "bg-[hsl(var(--severity-critical))]"
-                    : r >= 60
-                      ? "bg-[hsl(var(--severity-high))]"
-                      : r >= 40
-                        ? "bg-[hsl(var(--severity-medium))]"
-                        : r > 0
-                          ? "bg-[hsl(var(--severity-low))]"
-                          : "bg-muted-foreground/25";
-                return (
-                  <span
-                    key={`${i}-${r}`}
-                    className={cn("min-w-[3px] flex-1 rounded-sm", tone)}
-                    style={{ height: h }}
-                    title={`R${r}`}
-                  />
-                );
-              })}
-            </div>
-            <div className="mt-2 flex justify-between font-mono text-[10px] tabular-nums text-muted-foreground">
-              <span>μ {research.meanRisk ?? "—"}</span>
-              <span className={cn(research.maxRisk >= 80 && "text-[hsl(var(--severity-critical))]")}>
-                max {research.maxRisk || "—"}
-              </span>
-            </div>
+            {sparkReady ? (
+              <>
+                <div className="mt-2 flex h-14 items-end gap-0.5 rounded-sm bg-muted/60 px-1 py-1">
+                  {riskSpark.map((r, i) => {
+                    const h = Math.max(6, Math.round((r / 100) * 48));
+                    const tone =
+                      r >= 80
+                        ? "bg-[hsl(var(--severity-critical))]"
+                        : r >= 60
+                          ? "bg-[hsl(var(--severity-high))]"
+                          : r >= 40
+                            ? "bg-[hsl(var(--severity-medium))]"
+                            : r > 0
+                              ? "bg-[hsl(var(--severity-low))]"
+                              : "bg-muted-foreground/25";
+                    return (
+                      <span
+                        key={`${i}-${r}`}
+                        className={cn("min-w-[3px] flex-1 rounded-sm", tone)}
+                        style={{ height: h }}
+                        title={`R${r}`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex justify-between font-mono text-[10px] tabular-nums text-muted-foreground">
+                  <span>μ {research.meanRisk ?? "—"}</span>
+                  <span className={cn(research.maxRisk >= 80 && "text-[hsl(var(--severity-critical))]")}>
+                    max {research.maxRisk || "—"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="mt-2 space-y-2" aria-hidden>
+                <Skeleton className="h-14 w-full" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-10" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {(
-            [
-              ["CRITICAL", sev.CRITICAL, "bg-[hsl(var(--severity-critical))]"],
-              ["HIGH", sev.HIGH, "bg-[hsl(var(--severity-high))]"],
-              ["MEDIUM", sev.MEDIUM, "bg-[hsl(var(--severity-medium))]"],
-              ["LOW", sev.LOW, "bg-[hsl(var(--severity-low))]"],
-            ] as const
-          ).map(([label, count, fill]) => (
-            <div key={label} className="rounded-md border border-border bg-card/70 px-2.5 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                  {label}
-                </span>
-                <span className="font-mono text-[14px] tabular-nums text-foreground">{count}</span>
-              </div>
-              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", fill)}
-                  style={{
-                    width: `${research.n ? Math.min(100, (count / research.n) * 100) : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </LandingMotionCard>
 
@@ -485,51 +487,43 @@ export default function MonitorIndexPage() {
 
       {/* Live blotter + inspect */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)]">
-        <LandingMotionCard index={1} glow={false} className="border border-border bg-card p-0 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+        <LandingMotionCard instant index={1} glow={false} className="border border-border bg-card p-0 overflow-hidden">
+          <div id="live-activity" className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                 Live activity
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Newest first — select a row to see details
+                Newest first — select a row
+                {severityFilter !== "all" ? ` · ${severityFilter}` : ""}
               </p>
             </div>
             <span className="font-mono text-[10px] text-muted-foreground">
-              {research.eventRows.length} shown
+              {blotterRows.length} shown
             </span>
           </div>
-          {research.eventRows.length === 0 ? (
-            <div className="space-y-3 px-4 py-10 text-center">
-              <p className="text-[14px] text-foreground">No activity yet</p>
-              <p className="mx-auto max-w-sm text-[13px] text-muted-foreground">
-                When your AI agents are tested, every scan shows up here. Start with a quick check
-                or open Attack Lab.
-              </p>
-              <div className="flex flex-wrap justify-center gap-2 pt-1">
-                <Button size="sm" asChild>
-                  <Link href="/red-team/lab">Open Attack Lab</Link>
-                </Button>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/red-team/campaigns/new">Start a campaign</Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="max-h-[420px] overflow-auto">
-              <table className="w-full min-w-[640px] text-left text-[12px]">
-                <thead className="sticky top-0 z-[1] border-b border-border bg-muted/40 font-mono text-[9px] uppercase tracking-wider text-muted-foreground backdrop-blur">
+          <div className="max-h-[420px] overflow-auto">
+            <table className="w-full min-w-[760px] text-left text-[12px]">
+              <thead className="sticky top-0 z-[1] border-b border-border bg-muted/40 font-mono text-[9px] uppercase tracking-wider text-muted-foreground backdrop-blur">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Age</th>
+                  <th className="px-3 py-2 font-medium">Agent</th>
+                  <th className="px-3 py-2 font-medium">Tool</th>
+                  <th className="px-3 py-2 font-medium">Verdict</th>
+                  <th className="px-3 py-2 font-medium">Risk</th>
+                  <th className="px-3 py-2 font-medium">MITRE / ASI</th>
+                  <th className="px-3 py-2 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {blotterRows.length === 0 ? (
                   <tr>
-                    <th className="px-3 py-2 font-medium">Age</th>
-                    <th className="px-3 py-2 font-medium">Agent</th>
-                    <th className="px-3 py-2 font-medium">Tool</th>
-                    <th className="px-3 py-2 font-medium">Verdict</th>
-                    <th className="px-3 py-2 font-medium">Risk</th>
-                    <th className="px-3 py-2 font-medium">Action</th>
+                    <td colSpan={7} className="px-3 py-8 text-center text-[13px] text-muted-foreground">
+                      No activity yet.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {research.eventRows.map((row) => {
+                ) : (
+                  blotterRows.map((row) => {
                     const active = selected?.id === row.id;
                     return (
                       <tr
@@ -556,19 +550,24 @@ export default function MonitorIndexPage() {
                         >
                           R{row.risk}
                         </td>
+                        <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                          <span className="text-foreground">{row.mitre}</span>
+                          <span className="mx-1 text-border">·</span>
+                          {row.asi}
+                        </td>
                         <td className="max-w-[6rem] truncate px-3 py-2 font-mono text-muted-foreground">
                           {row.action}
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </LandingMotionCard>
 
-        <LandingMotionCard index={2} glow={false} className="border border-border bg-card p-4">
+        <LandingMotionCard instant index={2} glow={false} className="border border-border bg-card p-4">
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Event inspect
           </p>
@@ -598,6 +597,8 @@ export default function MonitorIndexPage() {
                 <Field k="Session" v={selected.session} />
                 <Field k="Action" v={selected.action} />
                 <Field k="Timestamp" v={selected.ts || "—"} />
+                <Field k="MITRE" v={selected.mitre} />
+                <Field k="ASI" v={selected.asi} />
                 <Field
                   k="Detectors"
                   v={selected.detectors.length ? selected.detectors.join(", ") : "—"}
@@ -630,7 +631,7 @@ export default function MonitorIndexPage() {
               {selected.session !== "—" ? (
                 <Button size="sm" variant="outline" asChild>
                   <Link href={`/logs?session=${encodeURIComponent(selected.session)}`}>
-                    Open in Logs
+                    Open in Activity
                   </Link>
                 </Button>
               ) : null}
@@ -804,26 +805,17 @@ export default function MonitorIndexPage() {
         )}
       </section>
       ) : null}
-        </>
+        </div>
       ) : (
       /* Campaigns desk */
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Campaign theaters
-            </h3>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              Separate from live agent traffic — open a run to follow rounds.
-            </p>
-          </div>
-          <Button size="sm" variant="outline" asChild>
-            {preferred ? (
-              <Link href={`/red-team/monitor/${preferred.id}?follow=1`}>Watch run</Link>
-            ) : (
-              <Link href="/red-team/campaigns/new">Start a campaign</Link>
-            )}
-          </Button>
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Campaign theaters
+          </h3>
+          <p className="mt-1 text-[12px] text-muted-foreground">
+            Separate from live agent traffic — open a run to follow rounds.
+          </p>
         </div>
         {running.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -845,26 +837,11 @@ export default function MonitorIndexPage() {
         {loading && campaigns.length === 0 ? (
           <p className="text-[13px] text-muted-foreground">Loading campaigns…</p>
         ) : campaignRiskRows.length === 0 ? (
-          <div className="space-y-3 rounded-md border border-dashed border-border px-4 py-10 text-center">
-            <p className="text-[14px] text-foreground">No campaigns yet</p>
-            <p className="mx-auto max-w-sm text-[13px] text-muted-foreground">
-              Start a run from Attack Lab or Campaigns. Live agent traffic stays on the other desk.
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" asChild>
-                <Link href="/red-team/campaigns/new">Start a campaign</Link>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setDesk("traffic");
-                  setDeskPicked(true);
-                }}
-              >
-                View live traffic
-              </Button>
-            </div>
+          <div className="rounded-md border border-dashed border-border px-4 py-8 text-center">
+            <p className="text-[13px] text-muted-foreground">No campaigns yet.</p>
+            <Button size="sm" className="mt-3" asChild>
+              <Link href="/red-team/lab">Attack Lab</Link>
+            </Button>
           </div>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">
@@ -1107,5 +1084,13 @@ function EmptyRow({ hint }: { hint: string }) {
     <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-[12px] text-muted-foreground">
       {hint}
     </p>
+  );
+}
+
+export default function DetectionsPage() {
+  return (
+    <Suspense fallback={<p className="text-[13px] text-muted-foreground">Loading detections…</p>}>
+      <MonitorIndexPage />
+    </Suspense>
   );
 }

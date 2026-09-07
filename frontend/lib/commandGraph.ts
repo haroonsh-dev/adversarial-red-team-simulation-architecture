@@ -57,8 +57,11 @@ export interface TopologyApiPayload {
 
 type LiveEventLike = Record<string, unknown>;
 
-const VIEW_W = 1000;
-const VIEW_H = 560;
+const VIEW_W = 1400;
+const VIEW_H = 680;
+/** Soft cap so the map stays readable under Watch-pulse noise. */
+const MAX_GRAPH_NODES = 36;
+const MIN_NODE_GAP = 76;
 
 function scoreToSeverity(score: number, status?: string): CommandNodeSeverity {
   const s = (status ?? "").toUpperCase();
@@ -104,8 +107,8 @@ export function layoutNodes(
 }
 
 /**
- * Ops swimlane layout: sessions (top) → agents (left) → tools (right).
- * Reads like a ops blast-radius map.
+ * Ops swimlane layout: sessions (top row) → agents (left grid) → tools (right grid).
+ * Never piles many nodes into a few pixels — that made the map look “broken”.
  */
 export function layoutByKind(
   nodes: Array<Omit<CommandGraphNode, "x" | "y">>,
@@ -119,42 +122,119 @@ export function layoutByKind(
     (n) => n.kind !== "session" && n.kind !== "agent" && n.kind !== "control" && n.kind !== "tool"
   );
 
-  const placeColumn = (
-    list: Array<Omit<CommandGraphNode, "x" | "y">>,
-    x: number,
-    yStart: number,
-    yEnd: number
-  ): CommandGraphNode[] => {
-    if (!list.length) return [];
-    const span = yEnd - yStart;
-    const step = list.length === 1 ? 0 : span / (list.length - 1);
-    return list.map((n, i) => ({
-      ...n,
-      x,
-      y: list.length === 1 ? (yStart + yEnd) / 2 : yStart + i * step,
-    }));
-  };
-
-  // If we only have one kind, fall back to grid.
   const kindCount =
     Number(sessions.length > 0) + Number(agents.length > 0) + Number(tools.length > 0);
   if (kindCount <= 1 && other.length === 0) {
     return applyLayout(nodes);
   }
 
-  const topY = 88;
-  const midTop = 140;
-  const midBot = height - 72;
-  const leftX = 160;
-  const rightX = width - 160;
-  const centerX = width / 2;
+  const padX = 100;
+  const topY = 110;
+  const midTop = 180;
+  const midBot = height - 64;
 
   return [
-    ...placeColumn(sessions, centerX, topY - 10, topY + 10),
-    ...placeColumn(agents.length ? agents : other, leftX, midTop, midBot),
-    ...placeColumn(tools, rightX, midTop, midBot),
-    ...(agents.length ? placeColumn(other, centerX, midTop, midBot) : []),
+    ...placeInRegion(sessions, {
+      x0: padX,
+      x1: width - padX,
+      y0: topY - 22,
+      y1: topY + 22,
+      preferRow: true,
+    }),
+    ...placeInRegion(agents.length ? agents : other, {
+      x0: padX,
+      x1: width * 0.44,
+      y0: midTop,
+      y1: midBot,
+    }),
+    ...placeInRegion(tools, {
+      x0: width * 0.56,
+      x1: width - padX,
+      y0: midTop,
+      y1: midBot,
+    }),
+    ...(agents.length
+      ? placeInRegion(other, {
+          x0: width * 0.42,
+          x1: width * 0.58,
+          y0: midTop,
+          y1: midBot,
+        })
+      : []),
   ];
+}
+
+/** Grid (or single row) inside a bounding box with a minimum gap. */
+function placeInRegion(
+  list: Array<Omit<CommandGraphNode, "x" | "y">>,
+  box: { x0: number; x1: number; y0: number; y1: number; preferRow?: boolean }
+): CommandGraphNode[] {
+  if (!list.length) return [];
+  const sorted = [...list].sort(
+    (a, b) => b.riskScore - a.riskScore || b.eventCount - a.eventCount
+  );
+  const maxInLane = box.preferRow ? 10 : 14;
+  const visible = sorted.slice(0, maxInLane);
+
+  const bw = Math.max(40, box.x1 - box.x0);
+  const bh = Math.max(40, box.y1 - box.y0);
+
+  let cols: number;
+  let rows: number;
+  if (box.preferRow || visible.length <= 4) {
+    cols = visible.length;
+    rows = 1;
+  } else {
+    cols = Math.min(4, Math.ceil(Math.sqrt(visible.length)));
+    rows = Math.ceil(visible.length / cols);
+  }
+
+  const gapX = Math.max(MIN_NODE_GAP, bw / Math.max(cols, 1));
+  const gapY = Math.max(MIN_NODE_GAP, bh / Math.max(rows, 1));
+  const usedW = (cols - 1) * gapX;
+  const usedH = (rows - 1) * gapY;
+  const originX = (box.x0 + box.x1) / 2 - usedW / 2;
+  const originY = (box.y0 + box.y1) / 2 - usedH / 2;
+
+  return visible.map((n, i) => ({
+    ...n,
+    x: originX + (i % cols) * gapX,
+    y: originY + Math.floor(i / cols) * gapY,
+  }));
+}
+
+/**
+ * Keep the hottest / most-connected nodes so Watch-pulse topology stays readable.
+ */
+export function pruneGraphNodes(
+  nodes: Array<Omit<CommandGraphNode, "x" | "y">>,
+  edges: CommandGraphEdge[],
+  limit = MAX_GRAPH_NODES
+): { nodes: Array<Omit<CommandGraphNode, "x" | "y">>; edges: CommandGraphEdge[] } {
+  if (nodes.length <= limit) return { nodes, edges };
+
+  const rank = (n: Omit<CommandGraphNode, "x" | "y">) =>
+    n.riskScore * 10 + n.eventCount + (n.severity === "CRITICAL" ? 40 : n.severity === "HIGH" ? 20 : 0);
+
+  const sorted = [...nodes].sort((a, b) => rank(b) - rank(a));
+  const keep = new Set(sorted.slice(0, limit).map((n) => n.id));
+
+  // Pull in 1-hop neighbors of kept hot nodes so edges don't orphan.
+  for (const e of edges) {
+    if (keep.has(e.source) && nodes.some((n) => n.id === e.target)) keep.add(e.target);
+    if (keep.has(e.target) && nodes.some((n) => n.id === e.source)) keep.add(e.source);
+  }
+  // Re-cap after neighbor expansion
+  if (keep.size > limit + 12) {
+    const trimmed = sorted.filter((n) => keep.has(n.id)).slice(0, limit);
+    keep.clear();
+    for (const n of trimmed) keep.add(n.id);
+  }
+
+  return {
+    nodes: nodes.filter((n) => keep.has(n.id)),
+    edges: edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+  };
 }
 
 function applyLayout<T extends { id: string }>(
@@ -295,8 +375,9 @@ export function buildGraphFromTopology(payload: TopologyApiPayload): CommandGrap
     }
   }
 
-  const positioned = layoutByKind([...byId.values()]);
-  const edges = [...edgeAcc.values()];
+  const pruned = pruneGraphNodes([...byId.values()], [...edgeAcc.values()]);
+  const positioned = layoutByKind(pruned.nodes);
+  const edges = pruned.edges;
   const placed = new Map(positioned.map((n) => [n.id, n]));
   for (const edge of edges) {
     const src = placed.get(edge.source);
@@ -376,12 +457,11 @@ export function buildGraphFromTelemetry(events: LiveEventLike[]): CommandGraphMo
     });
   }
 
-  const positioned = layoutByKind(rawNodes);
-  const edges: CommandGraphEdge[] = [];
+  const draftEdges: CommandGraphEdge[] = [];
   let i = 0;
   for (const [key, meta] of linkMap) {
     const [agentId, toolName] = key.split("→");
-    edges.push({
+    draftEdges.push({
       id: `tel-e${i++}`,
       source: `agent-${agentId}`,
       target: `tool-${toolName}`,
@@ -391,7 +471,9 @@ export function buildGraphFromTelemetry(events: LiveEventLike[]): CommandGraphMo
     });
   }
 
-  return finalize(positioned, edges, "telemetry");
+  const pruned = pruneGraphNodes(rawNodes, draftEdges);
+  const positioned = layoutByKind(pruned.nodes);
+  return finalize(positioned, pruned.edges, "telemetry");
 }
 
 /** Empty live graph — waiting for topology API or ingest telemetry. */

@@ -75,7 +75,7 @@ export const GUARD_FEATURE_CATEGORIES: GuardFeatureCategory[] = [
         name: "Latency cap & parallelization",
         description: "Smart chunking, parallel detectors, global PoPs — sub-50ms target at scale.",
         artsa: "Containment SLO + dashboard latency metrics",
-        href: "/dashboard",
+        href: "/command-center",
       },
       {
         id: "guard-results",
@@ -96,7 +96,7 @@ export const GUARD_FEATURE_CATEGORIES: GuardFeatureCategory[] = [
         name: "Dashboard, logs & SIEM export",
         description: "Central visibility, detection analytics, export to your SOC stack.",
         artsa: "Command Center, Logs, outbound connectors",
-        href: "/dashboard",
+        href: "/command-center",
       },
       {
         id: "red-team",

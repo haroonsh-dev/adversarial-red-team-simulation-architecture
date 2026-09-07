@@ -195,8 +195,8 @@ export default function AdminProvidersPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Provider Management"
-        description="Register any LLM API key at runtime — keys are encrypted at rest, never returned, and usable through the containment proxy."
+        title="AI Providers"
+        description="Add any AI provider key — stored encrypted, never shown in full, used only when ARTSA needs to call a model."
         icon={<Cpu className="h-5 w-5" />}
         actions={<Badge variant="outline" className="meta-badge">{providers.length} registered</Badge>}
       />

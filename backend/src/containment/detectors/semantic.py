@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import logging
+
 from src.containment.detectors.base import BaseDetector
 from src.core.config import settings
 from src.core.models.events import SecurityEvent, ToolCallEvent
-from src.data.embedding_manager import HighAccuracy1024EmbeddingFunction, cosine_similarity
+from src.data.embedding_manager import (
+    EmbeddingUnavailable,
+    HighAccuracy1024EmbeddingFunction,
+    cosine_similarity,
+)
 from src.utils.obfuscation import semantic_candidates
+
+logger = logging.getLogger(__name__)
 
 # Known malicious semantic patterns (embedding similarity targets).
 # WS-2.2: expanded from 6 to a curated reference library covering the main
@@ -234,20 +242,23 @@ class SemanticDetector(BaseDetector):
         best_similarity = 0.0
         best_text = arg_str
         kill_similarity = self.SIMILARITY_THRESHOLD + (20.0 / 120.0)  # maps to risk >= 80
-        for text in semantic_candidates(arg_str):
-            query_embedding = self._embedder.embed(text)
-            max_similarity = 0.0
-            for ref in self._malicious_embeddings:
-                sim = cosine_similarity(query_embedding, ref)
-                if sim > max_similarity:
-                    max_similarity = sim
-                if max_similarity >= 0.95:
+        try:
+            for text in semantic_candidates(arg_str):
+                query_embedding = self._embedder.embed(text)
+                max_similarity = 0.0
+                for ref in self._malicious_embeddings:
+                    sim = cosine_similarity(query_embedding, ref)
+                    if sim > max_similarity:
+                        max_similarity = sim
+                    if max_similarity >= 0.95:
+                        break
+                if max_similarity > best_similarity:
+                    best_similarity = max_similarity
+                    best_text = text
+                if best_similarity >= kill_similarity:
                     break
-            if max_similarity > best_similarity:
-                best_similarity = max_similarity
-                best_text = text
-            if best_similarity >= kill_similarity:
-                break
+        except EmbeddingUnavailable as exc:
+            return self._fail_closed(event, exc)
 
         if best_similarity >= self.SIMILARITY_THRESHOLD:
             risk_score = min(100.0, 60.0 + (best_similarity - self.SIMILARITY_THRESHOLD) * 120)
@@ -269,3 +280,47 @@ class SemanticDetector(BaseDetector):
                 detector=self.name,
             )
         return None
+
+    def _fail_closed(self, event: ToolCallEvent, exc: EmbeddingUnavailable) -> SecurityEvent:
+        """Protected traffic must not continue with a weakened hash embedding."""
+        logger.error(
+            "Semantic detector fail-closed session=%s agent=%s error=%s",
+            event.session_id,
+            event.agent_id,
+            exc,
+        )
+        try:
+            from src.core.models.alerts import Alert
+            from src.services.alert_store import append_alert
+
+            append_alert(
+                Alert(
+                    session_id=event.session_id,
+                    agent_id=event.agent_id,
+                    severity="CRITICAL",
+                    title="Semantic embeddings unavailable",
+                    message=(
+                        "Fail-closed: embedding backend failed; hash-1024 fallback refused. "
+                        f"{exc}"
+                    ),
+                    risk_score=100.0,
+                    channel="WEBHOOK",
+                )
+            )
+        except Exception as alert_exc:  # pragma: no cover
+            logger.warning("Embedding fail-closed alert skipped: %s", alert_exc)
+        return SecurityEvent(
+            session_id=event.session_id,
+            agent_id=event.agent_id,
+            event_type="PROMPT_INJECTION",
+            severity="CRITICAL",
+            risk_score=100.0,
+            description="Semantic detector fail-closed: embeddings unavailable",
+            evidence={
+                "fail_closed": True,
+                "reason": "embedding_unavailable",
+                "error": str(exc),
+                "model": self._embedder.model_name,
+            },
+            detector=self.name,
+        )

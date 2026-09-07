@@ -131,14 +131,14 @@ export function RedTeamScanWizard({
         role="dialog"
         aria-modal="true"
         aria-labelledby="scan-wizard-title"
-        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-xl border border-[#313131] bg-[#0a0a0a] sm:rounded-xl"
+        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-xl border border-border bg-background sm:rounded-xl"
       >
-        <div className="flex items-center justify-between border-b border-[#313131] px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <p id="scan-wizard-title" className="text-sm font-semibold text-white">
+            <p id="scan-wizard-title" className="text-sm font-semibold text-foreground">
               New scan
             </p>
-            <p className="font-mono text-[10px] text-[#7c7c7c]">
+            <p className="font-mono text-[10px] text-muted-foreground">
               Target · depth · start engagement
             </p>
           </div>
@@ -157,15 +157,15 @@ export function RedTeamScanWizard({
 
         <div className="space-y-5 overflow-y-auto p-4 sm:p-5">
           <section className="space-y-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
               1 · Target
             </p>
             {providersLoading ? (
               <Skeleton className="h-20 w-full rounded-[8px]" />
             ) : providers.length === 0 ? (
-              <p className="text-[13px] text-[#7c7c7c]">
+              <p className="text-[13px] text-muted-foreground">
                 No providers.{" "}
-                <Link href="/red-team/surface" className="text-[#6798ff] hover:underline">
+                <Link href="/red-team/surface" className="text-[#67b3ef] hover:underline">
                   Add a target
                 </Link>
               </p>
@@ -185,14 +185,14 @@ export function RedTeamScanWizard({
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-[8px] border px-3 py-2 text-left",
                         active
-                          ? "border-[#6798ff]/45 bg-[#1a1f2e]"
-                          : "border-[#313131] bg-[#141414] hover:border-[#454545]",
+                          ? "border-primary/45 bg-primary/10"
+                          : "border-border bg-muted hover:border-border",
                         !p.configured && "opacity-50"
                       )}
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-white">{p.name}</p>
-                        <p className="truncate font-mono text-[10px] text-[#7c7c7c]">{p.model}</p>
+                        <p className="truncate text-[13px] font-medium text-foreground">{p.name}</p>
+                        <p className="truncate font-mono text-[10px] text-muted-foreground">{p.model}</p>
                       </div>
                       <Badge
                         variant={p.configured ? "success" : "secondary"}
@@ -216,7 +216,7 @@ export function RedTeamScanWizard({
           </section>
 
           <section className="space-y-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
               2 · Attack depth
             </p>
             <div className="grid gap-2">
@@ -231,21 +231,21 @@ export function RedTeamScanWizard({
                     className={cn(
                       "flex items-start gap-3 rounded-[8px] border px-3 py-2.5 text-left",
                       active
-                        ? "border-[#6798ff]/45 bg-[#1a1f2e]"
-                        : "border-[#313131] bg-[#141414] hover:border-[#454545]"
+                        ? "border-primary/45 bg-primary/10"
+                        : "border-border bg-muted hover:border-border"
                     )}
                   >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#6798ff]" />
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#67b3ef]" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-medium text-white">{profile.label}</span>
+                        <span className="text-[13px] font-medium text-foreground">{profile.label}</span>
                         {profile.depthBadge ? (
                           <Badge variant="outline" className="meta-badge">
                             {profile.depthBadge}
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-[#7c7c7c]">{profile.description}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{profile.description}</p>
                     </div>
                   </button>
                 );
@@ -264,7 +264,7 @@ export function RedTeamScanWizard({
               ))}
             </div>
             {profileAsi.length > 0 && (
-              <p className="font-mono text-[10px] text-[#454545]">
+              <p className="font-mono text-[10px] text-muted-foreground">
                 ASI: {profileAsi.map((a) => a.code).join(" · ")}
               </p>
             )}
@@ -275,7 +275,7 @@ export function RedTeamScanWizard({
           </section>
 
           <section className="space-y-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
               3 · Session
             </p>
             <Input
@@ -290,7 +290,7 @@ export function RedTeamScanWizard({
               onChange={(e) => setFocusObjective(e.target.value)}
             />
             <div className="flex items-center justify-between gap-3">
-              <label className="text-[12px] text-[#a7a7a7]">
+              <label className="text-[12px] text-muted-foreground">
                 Rounds
                 <Input
                   type="number"
@@ -301,7 +301,7 @@ export function RedTeamScanWizard({
                   onChange={(e) => setRounds(Math.max(1, Number(e.target.value) || 1))}
                 />
               </label>
-              <label className="flex items-center gap-2 text-[12px] text-[#a7a7a7]">
+              <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={useLlmJudge}
@@ -313,7 +313,7 @@ export function RedTeamScanWizard({
           </section>
         </div>
 
-        <div className="border-t border-[#313131] p-4">
+        <div className="border-t border-border p-4">
           <Button
             size="lg"
             className="w-full gap-2"

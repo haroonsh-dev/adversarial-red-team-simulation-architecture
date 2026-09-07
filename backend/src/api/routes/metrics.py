@@ -5,7 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from src.api.dependencies import get_session_tracker
+from src.api.dependencies import get_current_tenant, get_session_tracker
+from src.core.asi import HMAC_STATUS, HMAC_THREAT_CODE, asi_catalog
+from src.services.ops_telemetry import build_ops_snapshot
 from src.services.session_tracker import SessionTracker
 from src.services.telemetry_bus import telemetry_bus
 
@@ -153,3 +155,25 @@ async def recent_telemetry(limit: int = Query(50, ge=1, le=200)) -> dict[str, An
     """Recent ingest/proxy telemetry for dashboards when WebSocket history is empty."""
     events = telemetry_bus.get_history(limit=limit)
     return {"events": events, "count": len(events)}
+
+
+@router.get("/telemetry/ops")
+async def ops_telemetry(tenant_id: str = Depends(get_current_tenant)) -> dict[str, Any]:
+    """Canonical Command Center snapshot projected from ingest + campaign buses.
+
+    Does not invent LIVE/HMAC/ASI08. Prefer this over polling each component.
+    """
+    return build_ops_snapshot(tenant_id=tenant_id)
+
+
+@router.get("/taxonomy/asi")
+async def asi_taxonomy() -> dict[str, Any]:
+    """OWASP ASI01–ASI10 with honest detector coverage. ASI08 is never supported."""
+    return {
+        "catalog": asi_catalog(),
+        "hmac": {
+            "threat_code": HMAC_THREAT_CODE,
+            "status": HMAC_STATUS.value,
+            "note": "HMAC-SHA256 handoffs are live on Red Team → Target → Judge. WS tickets are a separate secret.",
+        },
+    }

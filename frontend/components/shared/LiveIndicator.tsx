@@ -19,12 +19,12 @@ export function LiveIndicator({ connected, label, className }: LiveIndicatorProp
     >
       <span className="relative flex h-2 w-2">
         {connected && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/25 opacity-70" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/50 opacity-70" />
         )}
         <span
           className={cn(
             "relative inline-flex h-2 w-2 rounded-full",
-            connected ? "bg-foreground" : "bg-muted-foreground/80"
+            connected ? "bg-primary" : "bg-muted-foreground/80"
           )}
         />
       </span>

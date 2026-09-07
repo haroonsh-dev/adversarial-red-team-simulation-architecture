@@ -19,7 +19,7 @@ export default function SeverityDonutChartInner({ data }: { data: SeveritySlice[
             innerRadius="58%"
             outerRadius="82%"
             paddingAngle={chartData.length > 1 ? 2 : 0}
-            stroke="#0a0a0a"
+            stroke="hsl(var(--background))"
             strokeWidth={2}
           >
             {(chartData.length ? chartData : [{ fill: "#313131" }]).map((entry, i) => (
@@ -33,8 +33,8 @@ export default function SeverityDonutChartInner({ data }: { data: SeveritySlice[
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#7c7c7c]">Events</p>
-        <p className="font-mono text-2xl font-medium tabular-nums text-white">{total}</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Events</p>
+        <p className="font-mono text-2xl font-medium tabular-nums text-foreground">{total}</p>
       </div>
     </div>
   );

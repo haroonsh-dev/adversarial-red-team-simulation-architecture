@@ -43,7 +43,8 @@ interface AppDataContextValue {
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
-const POLL_MS = 30_000;
+const POLL_IDLE_MS = 20_000;
+const POLL_LIVE_MS = 5_000;
 
 /** Single poll loop for campaigns + policies — dedupes duplicate fetches across pages. */
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -95,11 +96,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return inflight.current;
   }, [refreshCampaigns, refreshPolicies]);
 
+  const hasLiveCampaign = campaigns.some((c) => {
+    const s = String(c.status || "").toUpperCase();
+    return s === "RUNNING" || s === "PENDING";
+  });
+
   useEffect(() => {
     void refreshAll();
-    const id = window.setInterval(refreshAll, POLL_MS);
-    return () => window.clearInterval(id);
   }, [refreshAll]);
+
+  useEffect(() => {
+    const ms = hasLiveCampaign ? POLL_LIVE_MS : POLL_IDLE_MS;
+    const id = window.setInterval(() => void refreshAll(), ms);
+    return () => window.clearInterval(id);
+  }, [refreshAll, hasLiveCampaign]);
 
   return (
     <AppDataContext.Provider

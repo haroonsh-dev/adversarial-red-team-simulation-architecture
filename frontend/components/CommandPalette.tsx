@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, Command, Play, FileText, Shield, Crosshair, Database, Rocket } from "lucide-react";
+import { Search, X, Command, Play, FileText, Shield, Crosshair, Rocket } from "lucide-react";
 import { navSections, flattenNavItems } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,15 +12,14 @@ import { cn } from "@/lib/utils";
 export const OPEN_COMMAND_PALETTE = "artsa:open-command-palette";
 
 const actionCommands = [
-  { name: "Run readiness test", href: "/get-started", category: "Actions", icon: Rocket },
-  { name: "Manage integrations", href: "/settings/integrations", category: "Actions", icon: Command },
-  { name: "Launch Wargame Campaign", href: "/campaigns", category: "Actions", icon: Play },
-  { name: "Open Attack Sandbox", href: "/sandbox", category: "Actions", icon: Crosshair },
-  { name: "Scan RAG corpus", href: "/rag-scanner", category: "Actions", icon: Database },
-  { name: "View Reports", href: "/reports", category: "Actions", icon: FileText },
-  { name: "View Logs", href: "/logs", category: "Actions", icon: FileText },
-  { name: "Open Session Replay", href: "/replay", category: "Actions", icon: Shield },
-  { name: "Configure Providers", href: "/admin/providers", category: "Actions", icon: Command },
+  { name: "Create API key", href: "/get-started", category: "Admin", icon: Rocket },
+  { name: "Integrations", href: "/settings/integrations", category: "Admin", icon: Command },
+  { name: "Start a campaign", href: "/red-team/campaigns", category: "Red Team", icon: Play },
+  { name: "Open Attack Lab", href: "/red-team/lab", category: "Red Team", icon: Crosshair },
+  { name: "View Reports", href: "/reports", category: "Report", icon: FileText },
+  { name: "View Activity", href: "/logs", category: "Detect", icon: FileText },
+  { name: "Open Sessions", href: "/replay", category: "Investigate", icon: Shield },
+  { name: "AI Providers", href: "/admin/providers", category: "Admin", icon: Command },
 ];
 
 export function openCommandPalette() {

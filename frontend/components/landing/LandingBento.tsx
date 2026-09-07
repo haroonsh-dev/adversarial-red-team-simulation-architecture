@@ -17,9 +17,9 @@ import { LandingSectionHeader } from "./LandingSectionHeader";
 const BENTO = [
   {
     icon: Activity,
-    title: "Live containment",
+    title: "Command Center",
     description:
-      "Stream ingest telemetry, score every session layer, and enforce KILL or QUARANTINE before escape paths compound.",
+      "Six-agent health, HMAC/trust story, and the adaptive-vs-static detection-rate-over-time curve. Runtime KILL / QUARANTINE is not a shipped gate.",
     className: "landing-bento__cell--hero md:col-span-2 md:row-span-2",
     href: demoHref("command"),
   },

@@ -19,28 +19,28 @@ export function RedTeamQuickLinks({ campaignId, findingsCount, className }: RedT
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-4", className)}>
       <FeatureLinkCard
-        title="Playground"
-        description="Single-shot probe before a full scan"
-        href="/sandbox"
+        title="Attack Lab"
+        description="Check a message before a full campaign"
+        href="/red-team/lab"
         icon={Crosshair}
         badge="Fast"
       />
       <FeatureLinkCard
         title="Findings"
-        description="Triage and promote issues to playbook"
+        description="Problems found from tests and live activity"
         href="/findings"
         icon={Bug}
         badge={findingsCount ? `${findingsCount} open` : undefined}
       />
       <FeatureLinkCard
-        title="Session replay"
-        description="Forensic autopsy for this evaluation"
+        title="Sessions"
+        description="Replay what an agent did"
         href={replayHref}
         icon={ScrollText}
       />
       <FeatureLinkCard
-        title="Agent pipeline"
-        description="Closed-loop Research → Defender flow"
+        title="AI Assets"
+        description="Agents and how they pass work to each other"
         href="/pipeline"
         icon={Network}
       />

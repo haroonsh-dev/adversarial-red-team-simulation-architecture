@@ -75,8 +75,8 @@ export default function PoliciesPage() {
     return (
       <PageStack>
         <PageHeader
-          title="Org Policies"
-          description="Custom detection rules backed by YAML — evaluated by the containment engine."
+          title="Policies"
+          description="Detection rules ARTSA applies when it checks each action."
           icon={<Shield className="h-5 w-5" />}
         />
         <EmptyState
@@ -91,8 +91,8 @@ export default function PoliciesPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Org Policies"
-        description="Custom detection rules backed by YAML — evaluated by the containment engine."
+        title="Policies"
+        description="Detection rules ARTSA applies when it checks each action."
         icon={<Shield className="h-5 w-5" />}
         actions={
           <Button size="sm" onClick={saveAll} disabled={saving}>

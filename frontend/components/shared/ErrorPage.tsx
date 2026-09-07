@@ -33,7 +33,7 @@ export function ErrorPage({
             Try again
           </Button>
         )}
-        <Button variant="outline" onClick={() => (window.location.href = "/dashboard")}>
+        <Button variant="outline" onClick={() => (window.location.href = "/command-center")}>
           Back to dashboard
         </Button>
       </div>

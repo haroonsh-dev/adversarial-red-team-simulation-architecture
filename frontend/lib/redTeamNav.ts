@@ -1,30 +1,40 @@
-/** Red Team workspace rail — core workflow only. */
+/** Prefetch targets for Red Team routes that live in the main sidebar. */
 
 export type RedTeamNavGroup = {
   label: string;
   items: { name: string; href: string; exact?: boolean }[];
 };
 
-/** Subfolders: Run → lab/campaigns, Watch → monitor/activity. Reports live in main app nav. */
 export const redTeamNav: RedTeamNavGroup[] = [
   {
-    label: "Test",
+    label: "Red Team",
     items: [
-      { name: "Try a message", href: "/red-team/lab" },
-      { name: "Safety tests", href: "/red-team/campaigns" },
+      { name: "Attack Lab", href: "/red-team/lab" },
+      { name: "Campaigns", href: "/red-team/campaigns" },
+      { name: "Attack Library", href: "/red-team/library" },
     ],
   },
   {
-    label: "Watch",
+    label: "Detect",
     items: [
-      { name: "Live results", href: "/red-team/monitor", exact: true },
-      { name: "Activity", href: "/red-team/monitor/live" },
+      { name: "Detections", href: "/red-team/monitor" },
+      { name: "Outcomes", href: "/red-team/matrix" },
     ],
   },
 ];
 
 export function isRedTeamHrefActive(pathname: string, href: string, exact?: boolean): boolean {
-  const pathOnly = href.split("?")[0];
+  const pathOnly = href.split("?")[0] ?? href;
+
+  if (pathOnly === "/red-team/monitor") {
+    if (pathname.startsWith("/red-team/monitor/live")) return true;
+    return (
+      pathname === "/red-team/monitor" ||
+      pathname === "/red-team/monitor/" ||
+      pathname.startsWith("/red-team/monitor/")
+    );
+  }
+
   if (exact || pathOnly === "/red-team") return pathname === pathOnly;
   return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
 }

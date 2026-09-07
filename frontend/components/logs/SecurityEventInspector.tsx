@@ -31,22 +31,22 @@ export function SecurityEventInspector({ row, className }: SecurityEventInspecto
     return (
       <aside
         className={cn(
-          "flex min-h-[420px] flex-col rounded-[8px] border border-[#313131] bg-[#1e1e1e]",
+          "flex min-h-[420px] flex-col rounded-[8px] border border-border bg-card",
           className
         )}
       >
-        <header className="border-b border-[#313131] px-4 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#6798ff]">
+        <header className="border-b border-border px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#67b3ef]">
             Event inspector
           </p>
-          <h3 className="mt-1 text-[15px] font-medium tracking-[-0.19px] text-white">
+          <h3 className="mt-1 text-[15px] font-medium tracking-[-0.19px] text-foreground">
             Select an event
           </h3>
-          <p className="mt-1 text-[12px] text-[#a7a7a7]">
+          <p className="mt-1 text-[12px] text-muted-foreground">
             Investigate containment decision, blast radius, and replay evidence.
           </p>
         </header>
-        <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-[#7c7c7c]">
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-muted-foreground">
           Click a row in the security event log to open forensics.
         </div>
       </aside>
@@ -73,18 +73,18 @@ export function SecurityEventInspector({ row, className }: SecurityEventInspecto
   return (
     <aside
       className={cn(
-        "flex min-h-[420px] flex-col rounded-[8px] border border-[#313131] bg-[#1e1e1e]",
+        "flex min-h-[420px] flex-col rounded-[8px] border border-border bg-card",
         className
       )}
     >
-      <header className="border-b border-[#313131] px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#6798ff]">
+      <header className="border-b border-border px-4 py-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#67b3ef]">
           Event inspector
         </p>
-        <h3 className="mt-1 truncate text-[15px] font-medium tracking-[-0.19px] text-white">
+        <h3 className="mt-1 truncate text-[15px] font-medium tracking-[-0.19px] text-foreground">
           {row.tool}
         </h3>
-        <p className="mt-1 font-mono text-[11px] text-[#7c7c7c]">
+        <p className="mt-1 font-mono text-[11px] text-muted-foreground">
           {formatDateTime(row.timestamp)}
         </p>
       </header>
@@ -116,7 +116,7 @@ export function SecurityEventInspector({ row, className }: SecurityEventInspecto
         </dl>
 
         <div>
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             Detector layers
           </p>
           <SessionLayerStrip evaluation={evaluation} />
@@ -144,7 +144,7 @@ export function SecurityEventInspector({ row, className }: SecurityEventInspecto
             </>
           ) : null}
           <Button asChild variant="outline" size="sm" className="w-full justify-start gap-2">
-            <Link href="/dashboard/topology">
+            <Link href="/command-center/topology">
               <Network className="h-3.5 w-3.5" aria-hidden />
               Attack topology
             </Link>
@@ -160,12 +160,12 @@ export function SecurityEventInspector({ row, className }: SecurityEventInspecto
         </div>
       </div>
 
-      <footer className="border-t border-[#313131] px-4 py-3">
-        <div className="flex items-start gap-2 text-[12px] text-[#7c7c7c]">
+      <footer className="border-t border-border px-4 py-3">
+        <div className="flex items-start gap-2 text-[12px] text-muted-foreground">
           {row.action === "KILL" || row.action === "QUARANTINE" ? (
             <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--severity-critical))]" aria-hidden />
           ) : (
-            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#6798ff]" aria-hidden />
+            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#67b3ef]" aria-hidden />
           )}
           <span>
             {row.action === "KILL" || row.action === "QUARANTINE"
@@ -188,12 +188,12 @@ function Metric({
   hot?: boolean;
 }) {
   return (
-    <div className="rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-2.5 py-2">
-      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">{label}</p>
+    <div className="rounded-[6px] border border-border bg-background px-2.5 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
       <p
         className={cn(
           "mt-0.5 font-mono text-[14px] font-medium",
-          hot ? "text-[hsl(var(--severity-critical))]" : "text-white"
+          hot ? "text-[hsl(var(--severity-critical))]" : "text-foreground"
         )}
       >
         {value}
@@ -212,9 +212,9 @@ function Field({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-[#313131]/60 pb-2 last:border-0">
-      <dt className="shrink-0 text-[#7c7c7c]">{label}</dt>
-      <dd className={cn("min-w-0 break-all text-right text-[#a7a7a7]", mono && "text-[10px]")}>
+    <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2 last:border-0">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className={cn("min-w-0 break-all text-right text-muted-foreground", mono && "text-[10px]")}>
         {value}
       </dd>
     </div>

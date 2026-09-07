@@ -156,7 +156,7 @@ function AttackGraphInner() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="max-w-xl text-[13px] text-muted-foreground">
-            Kill-chain from the selected campaign — open the theater or retest a hot stage in Lab.
+            How this campaign moved across stages — retest a hot stage in Attack Lab.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -38,7 +38,7 @@ export function LandingSignInPanel({
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
 
-  const dest = returnTo.startsWith("/") ? returnTo : "/dashboard";
+  const dest = returnTo.startsWith("/") ? returnTo : "/command-center";
 
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);

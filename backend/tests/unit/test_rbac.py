@@ -15,7 +15,21 @@ def test_readonly_get_only():
 
 def test_redteam_campaign_access():
     assert is_allowed(Role.REDTEAM, "POST", "/api/v1/campaigns/run")
+    assert is_allowed(Role.REDTEAM, "POST", "/api/v1/targets")
+    assert is_allowed(Role.REDTEAM, "POST", "/api/v1/targets/abc/discover")
     assert not is_allowed(Role.REDTEAM, "PUT", "/api/v1/policies")
+
+
+def test_analyst_cannot_register_or_probe_targets():
+    assert is_allowed(Role.ANALYST, "GET", "/api/v1/targets")
+    assert not is_allowed(Role.ANALYST, "POST", "/api/v1/targets")
+
+
+def test_role_capabilities_include_targets():
+    assert role_capabilities(Role.ADMIN)["can_manage_targets"] is True
+    assert role_capabilities(Role.REDTEAM)["can_manage_targets"] is True
+    assert role_capabilities(Role.ANALYST)["can_manage_targets"] is False
+    assert role_capabilities(Role.READONLY)["can_manage_targets"] is False
 
 
 def test_resolve_admin_key(monkeypatch):

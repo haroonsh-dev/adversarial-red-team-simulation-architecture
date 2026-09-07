@@ -10,14 +10,22 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from src.agents import JudgeAgent, RedTeamAgent, TargetAgent
+from src.agents.handoff_worker import deliver_handoff, run_judge_hop, run_target_hop
 from src.attacks.social_engineering import SocialEngineeringAttack
+from src.core.campaign_exec import context_from_campaign, publish_exec_context
+from src.core.config import settings
+from src.core.hmac_handoff import HandoffIntegrityError, nonce_digest, sign_handoff
+from src.core.models.hops import HmacState
 from src.data import AttackLibrary, ResultsStore, VectorStoreManager
 from src.models import (
     AttackCategory,
     AttackPayload,
     CampaignConfig,
     CampaignSummary,
+    HopLatencyMs,
     RoundResult,
+    JudgeScore,
+    TargetResponse,
     Verdict,
 )
 from src.orchestrator.state_machine import CampaignStateMachine
@@ -58,15 +66,28 @@ class CampaignManager:
             data_dir=app_config["artsa"]["data_dir"] + "/results"
         )
 
-        # Init Agents
-        self.target_agent = TargetAgent(config.target)
+        if settings.ARTSA_HMAC_RECEIVER_WORKERS:
+            # Workers construct Target/Judge from the exec snapshot and
+            # resolve secrets locally. Do not send keys over Redis.
+            self.target_agent = None
+            self.judge = None
+        else:
+            self.target_agent = TargetAgent(config.target)
+            self.judge = JudgeAgent(config=app_config["artsa"]["judge"])
+
+        try:
+            publish_exec_context(context_from_campaign(config, app_config))
+        except Exception:
+            logger.exception("Failed to publish campaign exec context for %s", config.id)
+            if settings.ARTSA_HMAC_RECEIVER_WORKERS:
+                raise
+
         self.red_team = RedTeamAgent(
             config=app_config["artsa"]["red_team"],
             attack_profile=config.attack_profile,
             attack_library=self.attack_library,
             target_config=config.target,
         )
-        self.judge = JudgeAgent(config=app_config["artsa"]["judge"])
 
         # State tracking
         self.history_stats: dict[str, dict[str, Any]] = {}
@@ -88,6 +109,107 @@ class CampaignManager:
             self.history_stats[cat]["total_score"]
             / self.history_stats[cat]["attempts"]
         )
+
+    def _open_handoff(
+        self,
+        *,
+        sender: str,
+        receiver: str,
+        body: dict[str, Any],
+        round_idx: int,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Sign and deliver to the Target/Judge receiver. Verify+audit happen
+        on the receiver (in-process agent or independent Redis worker)."""
+        envelope = sign_handoff(
+            sender=sender,
+            receiver=receiver,
+            body=body,
+            campaign_id=self.config.id,
+            round_id=round_idx,
+        )
+        try:
+            opened = deliver_handoff(envelope)
+        except HandoffIntegrityError as exc:
+            logger.error(
+                "HMAC handoff failed sender=%s receiver=%s reason=%s campaign=%s round=%s",
+                sender,
+                receiver,
+                exc.reason,
+                self.config.id,
+                round_idx,
+            )
+            raise
+        meta = {
+            "sender": sender,
+            "receiver": receiver,
+            "hmac_state": HmacState.OK.value,
+            "hmac_verified": True,
+            "replay_detected": False,
+            "nonce_sha256": nonce_digest(opened.nonce),
+            "event_id": opened.event_id,
+            "verification_result": "OK",
+            "receiver_process": "worker" if settings.ARTSA_HMAC_RECEIVER_WORKERS else "in_process",
+        }
+        return opened.body, meta
+
+    def _log_hmac_abort(
+        self, *, sender: str, receiver: str, round_idx: int, reason: str
+    ) -> None:
+        logger.error(
+            "HMAC handoff failed sender=%s receiver=%s reason=%s campaign=%s round=%s",
+            sender,
+            receiver,
+            reason,
+            self.config.id,
+            round_idx,
+        )
+
+    def _target_hop(
+        self,
+        payload: AttackPayload,
+        round_idx: int,
+        *,
+        history: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Red Team signs; Target verifies, processes, then signs for Judge."""
+        envelope = sign_handoff(
+            sender="red_team",
+            receiver="target",
+            body=payload.model_dump(mode="json"),
+            campaign_id=self.config.id,
+            round_id=round_idx,
+        )
+        extra = {
+            "exec_ref": {"campaign_id": self.config.id, "role": "target"},
+            "history": history or [],
+        }
+        try:
+            return run_target_hop(
+                envelope,
+                agent=None if settings.ARTSA_HMAC_RECEIVER_WORKERS else self.target_agent,
+                history=history,
+                extra=extra,
+            )
+        except HandoffIntegrityError as exc:
+            self._log_hmac_abort(
+                sender="red_team", receiver="target", round_idx=round_idx, reason=exc.reason
+            )
+            raise
+
+    def _judge_hop(self, judge_envelope: dict[str, Any] | Any, round_idx: int) -> dict[str, Any]:
+        """Judge verifies the Target-signed envelope, then scores. Orchestrator never signs as Target."""
+        extra = {"exec_ref": {"campaign_id": self.config.id, "role": "judge"}}
+        try:
+            return run_judge_hop(
+                judge_envelope,
+                agent=None if settings.ARTSA_HMAC_RECEIVER_WORKERS else self.judge,
+                extra=extra,
+            )
+        except HandoffIntegrityError as exc:
+            self._log_hmac_abort(
+                sender="target", receiver="judge", round_idx=round_idx, reason=exc.reason
+            )
+            raise
 
     def run(self, on_round_complete=None) -> CampaignSummary:
         """Run the campaign with evolutionary attack learning."""
@@ -141,21 +263,26 @@ class CampaignManager:
                 )
 
                 # Use a pending LLM rewrite if one exists
+                red_team_ms: float | None = None
                 if self._pending_rewrite is not None:
                     attack_payload = self._pending_rewrite
                     category = attack_payload.category
                     self._pending_rewrite = None
+                    # Rewrite was generated in a prior round — do not invent latency.
                 else:
+                    red_t0 = time.perf_counter()
                     category = self.red_team.select_attack_category(self.history_stats)
                     attack_payload = self.red_team.generate_attack(category)
+                    red_team_ms = (time.perf_counter() - red_t0) * 1000
 
-                # ─── 3. Target processes the attack ──────────────────
-                # Check for multi-turn chain (social engineering)
+                # ─── 3. Target processes the attack (HMAC-verified handoff) ──
                 is_chain = False
+                hmac_handoffs: list[dict[str, Any]] = []
+                judge_envelope: dict | None = None
+                target_t0 = time.perf_counter()
                 if category == AttackCategory.SOCIAL_ENGINEERING:
                     se_plugin = self.red_team.plugins.get(AttackCategory.SOCIAL_ENGINEERING)
                     if isinstance(se_plugin, SocialEngineeringAttack):
-                        # Use the same template the attack_payload was generated from
                         template_id = attack_payload.template_id
                         template = self.red_team.attack_library.get_by_id(template_id)
                         if template and se_plugin.is_multi_turn_template(template):
@@ -165,42 +292,56 @@ class CampaignManager:
                                 task,
                                 description=f"[cyan]Round {round_idx}: Multi-turn chain ({chain.total_turns} turns)...",
                             )
-                            # Execute all turns
                             last_payload = attack_payload
                             last_response = None
+                            judge_envelope = None
                             while not chain.is_complete():
                                 last_payload = chain.current_payload()
-                                if chain.conversation_history:
-                                    last_response = self.target_agent.process_with_history(
-                                        last_payload.prompt, chain.conversation_history
-                                    )
-                                else:
-                                    last_response = self.target_agent.process(last_payload.prompt)
+                                history = chain.conversation_history or None
+                                hop = self._target_hop(
+                                    last_payload, round_idx, history=history
+                                )
+                                hmac_handoffs.append(hop["hmac_meta"])
+                                last_payload = AttackPayload.model_validate(hop["payload"])
+                                last_response = TargetResponse.model_validate(hop["response"])
+                                judge_envelope = hop["judge_envelope"]
                                 chain.advance(last_response.response)
                                 if last_response.blocked:
                                     break
-                            # Use the last turn's payload and response for judging
-                            if last_response is not None:
+                            if last_response is not None and judge_envelope is not None:
                                 attack_payload = last_payload
                                 attack_payload.metadata["is_multi_turn"] = True
                                 attack_payload.metadata["chain_turns"] = chain.total_turns
                                 target_response = last_response
                             else:
-                                is_chain = False  # Empty chain, fall through
+                                is_chain = False
+                                judge_envelope = None
 
                 if not is_chain:
                     progress.update(
                         task,
                         description=f"[cyan]Round {round_idx}: Target processing...",
                     )
-                    target_response = self.target_agent.process(attack_payload.prompt)
+                    hop = self._target_hop(attack_payload, round_idx)
+                    hmac_handoffs.append(hop["hmac_meta"])
+                    attack_payload = AttackPayload.model_validate(hop["payload"])
+                    target_response = TargetResponse.model_validate(hop["response"])
+                    judge_envelope = hop["judge_envelope"]
 
-                # ─── 4. Judge evaluates ──────────────────────────────
+                target_ms = (time.perf_counter() - target_t0) * 1000
+
+                # ─── 4. Judge verifies Target-signed envelope, then scores ──
                 progress.update(
                     task,
                     description=f"[cyan]Round {round_idx}: Judge evaluating...",
                 )
-                score = self.judge.evaluate(attack_payload, target_response)
+                judge_t0 = time.perf_counter()
+                judge_hop = self._judge_hop(judge_envelope, round_idx)
+                hmac_handoffs.append(judge_hop["hmac_meta"])
+                attack_payload = AttackPayload.model_validate(judge_hop["payload"])
+                target_response = TargetResponse.model_validate(judge_hop["response"])
+                score = JudgeScore.model_validate(judge_hop["score"])
+                judge_ms = (time.perf_counter() - judge_t0) * 1000
 
                 duration = (time.time() - round_start) * 1000
 
@@ -211,6 +352,12 @@ class CampaignManager:
                     response=target_response,
                     score=score,
                     duration_ms=duration,
+                    hop_latency_ms=HopLatencyMs(
+                        red_team=red_team_ms,
+                        target=target_ms,
+                        judge=judge_ms,
+                    ),
+                    hmac_handoffs=hmac_handoffs,
                 )
 
                 self.results_store.save_round(self.config.id, result)

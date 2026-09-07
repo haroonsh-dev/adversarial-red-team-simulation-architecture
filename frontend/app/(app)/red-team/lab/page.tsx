@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { LandingMotionCard } from "@/components/landing/LandingMotionCard";
-import { AttackLabAdversary } from "@/components/red-team/AttackLabAdversary";
-import { AttackLabAnalysis } from "@/components/red-team/AttackLabAnalysis";
 import { AttackLabLiveConsole } from "@/components/red-team/AttackLabLiveConsole";
 import {
   FRIENDLY_STRATEGY,
@@ -13,8 +12,6 @@ import {
   RedTeamGlossary,
   RedTeamSimpleSteps,
 } from "@/components/red-team/RedTeamGlossary";
-import { RedTeamServiceReady } from "@/components/red-team/RedTeamServiceReady";
-import { SituationAutoPanel } from "@/components/sandbox/SituationAutoPanel";
 import { Button } from "@/components/ui/button";
 import { useProviders } from "@/lib/hooks/useProviders";
 import { riskScoreFromSummary } from "@/lib/assessmentResults";
@@ -56,7 +53,24 @@ import { useCampaigns } from "@/lib/hooks/useCampaigns";
 import { toast } from "@/lib/stores/toast";
 import { cn } from "@/lib/utils";
 
+const AttackLabAdversary = dynamic(
+  () =>
+    import("@/components/red-team/AttackLabAdversary").then((m) => m.AttackLabAdversary),
+  { ssr: false, loading: () => null }
+);
+const AttackLabAnalysis = dynamic(
+  () =>
+    import("@/components/red-team/AttackLabAnalysis").then((m) => m.AttackLabAnalysis),
+  { ssr: false, loading: () => null }
+);
+const SituationAutoPanel = dynamic(
+  () =>
+    import("@/components/sandbox/SituationAutoPanel").then((m) => m.SituationAutoPanel),
+  { ssr: false, loading: () => null }
+);
+
 function AttackLabInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { campaigns } = useCampaigns();
   const { providers } = useProviders();
@@ -354,10 +368,10 @@ function AttackLabInner() {
       startedAt: new Date().toISOString(),
     });
     toast("Lab run started", {
-      description: res.message || "Opening the live run…",
+      description: res.message || "Opening Live run (same area as Monitor in the sidebar)…",
       variant: "success",
     });
-    window.location.href = `/red-team/monitor/${res.campaignId}?follow=1`;
+    router.push(`/red-team/monitor/${res.campaignId}?follow=1`);
   };
 
   const liveRisk = probeRisk(lastProbe?.result ?? null);
@@ -387,16 +401,15 @@ function AttackLabInner() {
 
   return (
     <div className="space-y-8">
-      <RedTeamServiceReady />
-
       {!hasProvider ? (
         <div className="rounded-md border border-[hsl(var(--severity-medium-border))] bg-[hsl(var(--severity-medium-subtle))] px-4 py-3 text-[13px]">
-          <p className="font-medium text-foreground">Connect your AI to run a full test</p>
+          <p className="font-medium text-foreground">Target provider required</p>
           <p className="mt-1 text-muted-foreground">
-            You can still try one message now. For a longer test, connect your AI model first.
+            Checks can still score a message. Starting a full lab run needs a registered model
+            provider.
           </p>
           <Button size="sm" className="mt-2" asChild>
-            <Link href="/settings/integrations">Connect AI</Link>
+            <Link href="/admin/providers">Add provider</Link>
           </Button>
         </div>
       ) : null}
@@ -405,60 +418,53 @@ function AttackLabInner() {
         steps={[
           {
             n: 1,
-            title: "Pick what to test",
-            body: "Choose a risk type — like tricking instructions or stealing data.",
+            title: "Pick a technique",
+            body: "Choose what kind of attack to try against your AI.",
           },
           {
             n: 2,
-            title: "Try once",
-            body: "Send the test message and see if ARTSA blocks or allows it.",
+            title: "Check",
+            body: "Score this message now and see the live verdict.",
           },
           {
             n: 3,
-            title: "Or run a full test",
-            body: "Start a longer drill with many attacks — then watch the results.",
+            title: "Start run",
+            body: "Launch a full lab experiment, then watch it under Detections.",
           },
         ]}
       />
 
-      {/* First viewport: plain-language try once / full test */}
-      <LandingMotionCard
+      {/* First viewport: Attack Lab check / start run */}
+      <LandingMotionCard instant
         index={0}
         glow={false}
         className="overflow-hidden border border-border bg-card p-4 sm:p-5"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium text-muted-foreground">Attack Lab</p>
-            <h2 className="mt-1 text-[18px] font-medium tracking-tight text-foreground">
-              Test if your AI stays safe
+            <h2 className="text-[18px] font-medium tracking-tight text-foreground">
+              Check a message or start a run
             </h2>
             <p className="mt-1 max-w-xl text-[13px] text-muted-foreground">
-              Pick a risk, review the message, then try once — or run a full safety test.
+              Pick a technique, review the payload, then check once — or start a full lab run.
             </p>
           </div>
           {liveRisk != null ? (
             <div className="flex shrink-0 items-baseline gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
               <div>
-                <p className="text-[10px] text-muted-foreground">Score</p>
+                <p className="text-[10px] text-muted-foreground">Live risk</p>
                 <p
                   className={cn(
                     "text-[18px] font-semibold tabular-nums",
                     liveRisk >= 80 && "text-[hsl(var(--severity-critical))]"
                   )}
                 >
-                  {liveRisk}/100
+                  R{liveRisk}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Result</p>
-                <p className="text-[13px] font-medium text-foreground">
-                  {liveVerdict === "BREACHED"
-                    ? "Got through"
-                    : liveVerdict === "SAFE" || liveVerdict === "ALLOWED"
-                      ? "Blocked / safe"
-                      : liveVerdict ?? "—"}
-                </p>
+                <p className="text-[10px] text-muted-foreground">Verdict</p>
+                <p className="text-[13px] font-medium text-foreground">{liveVerdict ?? "—"}</p>
               </div>
             </div>
           ) : null}
@@ -466,7 +472,7 @@ function AttackLabInner() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-[12px]">
-            <span className="text-muted-foreground">What to test</span>
+            <span className="text-muted-foreground">Technique</span>
             <select
               id="lab-technique"
               className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[13px]"
@@ -484,7 +490,7 @@ function AttackLabInner() {
             </span>
           </label>
           <label className="space-y-1 text-[12px]">
-            <span className="text-muted-foreground">How it tries</span>
+            <span className="text-muted-foreground">Strategy</span>
             <select
               id="lab-strategy"
               className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[13px]"
@@ -502,13 +508,13 @@ function AttackLabInner() {
               ))}
             </select>
             <span className="block text-[11px] text-muted-foreground">
-              Planning guess only — real score appears after you try.
+              Planning estimate only — live score appears after a check.
             </span>
           </label>
         </div>
 
         <label className="mt-4 block space-y-1 text-[12px]">
-          <span className="text-muted-foreground">Test message</span>
+          <span className="text-muted-foreground">Attack payload</span>
           <textarea
             rows={5}
             value={input}
@@ -517,18 +523,18 @@ function AttackLabInner() {
               setSyncedFromTemplate(false);
             }}
             className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="The message we’ll send to test your AI…"
-            aria-label="Test message"
+            placeholder="Enter attack scenario…"
+            aria-label="Attack payload"
           />
         </label>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground">You can edit this before testing.</p>
+          <p className="text-[11px] text-muted-foreground">You can edit this before checking.</p>
           <button
             type="button"
             className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             onClick={() => applyTemplate(technique, strategy)}
           >
-            Reset example
+            Reset to template
           </button>
         </div>
 
@@ -537,17 +543,17 @@ function AttackLabInner() {
             disabled={probing || launching || !input.trim()}
             onClick={() => runProbe(true)}
           >
-            {probing ? "Testing…" : "Try once"}
+            {probing ? "Checking…" : "Check"}
           </Button>
           <Button
             variant="outline"
             disabled={launching || probing || !hasProvider || !input.trim()}
             onClick={() => void runCampaign()}
           >
-            {launching ? "Starting…" : hasProvider ? "Run full test" : "Connect AI first"}
+            {launching ? "Starting…" : hasProvider ? "Start run" : "Add provider first"}
           </Button>
           <Button size="sm" variant="ghost" asChild>
-            <Link href="/red-team/campaigns/new">Build a custom test</Link>
+            <Link href="/red-team/campaigns/new">Campaign builder</Link>
           </Button>
         </div>
       </LandingMotionCard>
@@ -579,7 +585,7 @@ function AttackLabInner() {
       <RedTeamGlossary />
 
       {/* Planning estimate — below the action fold */}
-      <LandingMotionCard
+      <LandingMotionCard instant
         index={1}
         glow={false}
         className={cn("overflow-hidden border p-4 sm:p-5", postureTone.border, postureTone.bg)}
@@ -700,7 +706,7 @@ function AttackLabInner() {
         </h3>
         <div className="grid gap-2 sm:grid-cols-3">
           {LAB_PRESETS.map((p, i) => (
-            <LandingMotionCard
+            <LandingMotionCard instant
               key={p.id}
               index={i}
               glow={false}
@@ -747,7 +753,7 @@ function AttackLabInner() {
                 const band =
                   t.baseRisk >= 78 ? "critical" : t.baseRisk >= 70 ? "high" : "medium";
                 return (
-                  <LandingMotionCard
+                  <LandingMotionCard instant
                     key={t.id}
                     index={idx + 1}
                     glow={false}
@@ -1039,13 +1045,14 @@ function AttackLabInner() {
                   <li key={c.id}>
                     <Link
                       href={`/red-team/monitor/${c.id}`}
+                      title="Open Live run for this campaign"
                       className="flex items-center justify-between gap-2 py-2 text-[12px] hover:text-foreground"
                     >
                       <span className="truncate text-muted-foreground">
                         {c.name.replace(/^Lab · /, "")}
                       </span>
                       <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                        {c.status}
+                        Live run · {c.status}
                       </span>
                     </Link>
                   </li>
@@ -1097,16 +1104,16 @@ function AttackLabInner() {
               disabled={probing || !input.trim()}
               onClick={() => runProbe(true)}
             >
-              {probing ? "Testing…" : "Try once"}
+              {probing ? "Checking…" : "Check"}
             </Button>
             <Button onClick={() => void runCampaign()} disabled={launching || probing || !hasProvider}>
-              {launching ? "Starting…" : hasProvider ? "Run full test" : "Connect AI first"}
+              {launching ? "Starting…" : hasProvider ? "Start run" : "Add provider first"}
             </Button>
             <Button variant="outline" onClick={() => void copyBrief()}>
-              Copy summary
+              Copy brief
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/red-team/campaigns/new">Custom test builder</Link>
+              <Link href="/red-team/campaigns/new">Campaign builder</Link>
             </Button>
           </div>
         </aside>

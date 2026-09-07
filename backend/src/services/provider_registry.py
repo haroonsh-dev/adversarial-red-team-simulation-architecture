@@ -143,6 +143,18 @@ def create_llm_instance(
     """
     prov_clean = provider.lower().strip()
 
+    if prov_clean in {"deterministic", "fake", "test"}:
+        from langchain_core.language_models.fake_chat_models import FakeListChatModel
+
+        from src.core.campaign_exec import DETERMINISTIC_RESPONSE, record_test_llm_call
+
+        class _CountingFake(FakeListChatModel):
+            def invoke(self, input, config=None, **kwargs):  # noqa: A002
+                record_test_llm_call()
+                return super().invoke(input, config=config, **kwargs)
+
+        return _CountingFake(responses=[DETERMINISTIC_RESPONSE])
+
     # 1. Check registered custom provider factory
     if prov_clean in _PROVIDER_REGISTRY:
         return _PROVIDER_REGISTRY[prov_clean](

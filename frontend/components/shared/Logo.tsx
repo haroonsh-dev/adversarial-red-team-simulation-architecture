@@ -9,7 +9,7 @@ interface LogoProps {
   iconSize?: number;
 }
 
-/** ARTSA mark — monochrome shield with cornflower accent (Dovetail). */
+/** ARTSA mark — hex node with adaptive lift vs flat baseline. */
 export function LogoIcon({ className, size = 26 }: { className?: string; size?: number }) {
   return (
     <svg
@@ -22,23 +22,26 @@ export function LogoIcon({ className, size = 26 }: { className?: string; size?: 
       aria-hidden
     >
       <path
-        d="M18 3 L31 8.5 V18 C31 25.5 25.5 31.5 18 34 C10.5 31.5 5 25.5 5 18 V8.5 L18 3 Z"
-        fill="#0a0a0a"
-        stroke="#6798ff"
+        d="M18 3.2 L31.4 11 V25 L18 32.8 L4.6 25 V11 Z"
+        fill="#070707"
+        stroke="#67b3ef"
         strokeWidth="1.75"
         strokeLinejoin="round"
       />
       <path
-        d="M18 6.5 L28 10.8 V17.5 C28 23.5 23.8 28.5 18 30.5 C12.2 28.5 8 23.5 8 17.5 V10.8 L18 6.5 Z"
-        fill="none"
-        stroke="#313131"
-        strokeWidth="0.8"
+        d="M10 23.2 H26"
+        stroke="#565656"
+        strokeWidth="1.35"
+        strokeLinecap="round"
       />
       <path
-        d="M18 10.5 L11.5 24.5 H14.5 L16.2 20.8 H19.8 L21.5 24.5 H24.5 L18 10.5 Z M17.2 18.5 L18 14.5 L18.8 18.5 H17.2 Z"
-        fill="#ffffff"
+        d="M10 21.4 L14.2 20.2 L18.4 16.1 L22.6 12.8 L26 11.4"
+        stroke="#67b3ef"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <circle cx="18" cy="16.5" r="1.5" fill="#6798ff" />
+      <circle cx="26" cy="11.4" r="1.55" fill="#67b3ef" />
     </svg>
   );
 }
@@ -56,11 +59,11 @@ export function LogoWordmark({
     <div className={cn("inline-flex items-center gap-2 select-none", className)}>
       <span
         style={{ fontSize: `${fontSize}px` }}
-        className="font-semibold tracking-[-0.02em] text-foreground"
+        className="font-semibold tracking-[-0.04em] text-foreground"
       >
         ARTSA
       </span>
-      <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[9px] font-normal uppercase tracking-[0.85px] text-muted-foreground">
+      <span className="rounded-sm border border-sky-400/25 bg-sky-400/10 px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-sky-300">
         EDS
       </span>
     </div>

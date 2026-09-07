@@ -431,8 +431,8 @@ export default function RagScannerPage() {
   return (
     <PageStack>
       <PageHeader
-        title="RAG Security Scanner"
-        description="Check knowledge-base chunks for hidden instructions, then test whether search ranking surfaces risky content."
+        title="Document scanner"
+        description="Check knowledge-base text for hidden instructions, then see whether search would surface risky content."
         icon={<Database className="h-5 w-5" />}
         actions={
           <Button size="sm" onClick={() => void runFullAudit()} disabled={isLoading} className="gap-2">

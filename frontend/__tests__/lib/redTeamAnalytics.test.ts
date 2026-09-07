@@ -52,6 +52,7 @@ describe("redTeamAnalytics", () => {
       avgBypassDepth: "1.0",
       blockedCount: 2,
       successCount: 1,
+      errorCount: 0,
       riskBand: "medium",
       verdicts: { BLOCKED: 2, SUCCESS: 1 },
     });

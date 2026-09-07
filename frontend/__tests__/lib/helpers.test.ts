@@ -22,10 +22,13 @@ describe("cn (className merge)", () => {
 describe("navigation", () => {
   it("defines the product-lifecycle sections in order", () => {
     expect(navSections.map((s) => s.label)).toEqual([
-      "Get Started",
-      "Protect",
-      "Test",
+      "",
+      "Discover",
+      "Assess",
+      "Red Team",
+      "Detect",
       "Investigate",
+      "Report",
       "Admin",
     ]);
   });
@@ -34,12 +37,11 @@ describe("navigation", () => {
     const admin = navSections.find((s) => s.label === "Admin");
     expect(admin?.adminOnly).toBe(true);
     expect(admin?.items.map((i) => i.href)).toEqual([
-      "/admin",
-      "/settings",
+      "/settings/integrations",
       "/admin/providers",
-      "/admin/policies",
-      "/admin/alerts",
-      "/admin/system",
+      "/get-started",
+      "/settings/team",
+      "/settings",
     ]);
   });
 
@@ -50,7 +52,6 @@ describe("navigation", () => {
       expect(typeof item.name).toBe("string");
       expect(item.name.length).toBeGreaterThan(0);
       expect(item.href.startsWith("/")).toBe(true);
-      // lucide-react icons are memoized component objects, not plain functions.
       expect(React.isValidElement(React.createElement(item.icon))).toBe(true);
     }
   });
@@ -61,23 +62,24 @@ describe("navigation", () => {
     );
     expect(byHref.get("/admin/policies")?.capability).toBe("can_manage_policies");
     expect(byHref.get("/red-team/campaigns")?.capability).toBe("can_run_campaigns");
-    const redTeam = navSections
-      .find((s) => s.label === "Test")
-      ?.items.find((i) => i.name === "Red Team");
-    expect(redTeam?.capability).toBe("can_run_campaigns");
   });
 
-  it("nests Red Team workflow items under a parent group", () => {
-    const testSection = navSections.find((s) => s.label === "Test");
-    const redTeam = testSection?.items.find((i) => i.name === "Red Team");
-    expect(redTeam?.href).toBe("/red-team");
-    expect(redTeam?.children?.map((c) => c.name)).toEqual([
-      "Try a message",
-      "Safety tests",
-      "Live results",
-      "Activity",
-      "Outcomes",
-      "Attack Graph",
+  it("puts Targets first in Discover", () => {
+    const discover = navSections.find((s) => s.label === "Discover");
+    expect(discover?.items.map((i) => i.name)).toEqual([
+      "Targets",
+      "AI Assets",
+      "Agents",
+      "Connections",
+    ]);
+  });
+
+  it("lists Red Team items as a flat section", () => {
+    const redTeam = navSections.find((s) => s.label === "Red Team");
+    expect(redTeam?.items.map((c) => c.name)).toEqual([
+      "Attack Lab",
+      "Campaigns",
+      "Attack Library",
     ]);
   });
 });
@@ -108,10 +110,10 @@ describe("replayFormat", () => {
 describe("workspace relatedness", () => {
   it("returns related links and a next action for core routes", async () => {
     const { workspaceFor } = await import("@/lib/workspace");
-    const dash = workspaceFor("/dashboard");
+    const dash = workspaceFor("/command-center");
     expect(dash.related.length).toBeGreaterThan(0);
     expect(dash.next?.href).toBe("/red-team/lab");
-    expect(workspaceFor("/logs").next?.href).toBe("/red-team/monitor");
+    expect(workspaceFor("/logs").next?.href).toBe("/replay");
     expect(workspaceFor("/library").next?.href).toBe("/red-team/lab");
   });
 });

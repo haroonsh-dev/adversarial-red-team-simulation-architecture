@@ -30,7 +30,7 @@ const nextConfig = {
   async redirects() {
     return [
       // Legacy routes → new enterprise URL scheme (301 permanent)
-      { source: "/topology", destination: "/dashboard/topology", permanent: true },
+      { source: "/topology", destination: "/command-center/topology", permanent: true },
       { source: "/wargame", destination: "/campaigns", permanent: true },
       { source: "/playground", destination: "/sandbox", permanent: true },
       { source: "/attack-library", destination: "/library", permanent: true },
@@ -43,9 +43,12 @@ const nextConfig = {
       { source: "/attack-library/:path*", destination: "/library/:path*", permanent: true },
       { source: "/policies/:path*", destination: "/admin/policies/:path*", permanent: true },
       { source: "/providers/:path*", destination: "/admin/providers/:path*", permanent: true },
-      { source: "/topology/:path*", destination: "/dashboard/topology/:path*", permanent: true },
+      { source: "/topology/:path*", destination: "/command-center/topology/:path*", permanent: true },
       { source: "/register", destination: "/login?mode=register", permanent: false },
       { source: "/signup", destination: "/login?mode=register", permanent: false },
+      // Command Center moved from /dashboard → /command-center
+      { source: "/dashboard", destination: "/command-center", permanent: false },
+      { source: "/dashboard/:path*", destination: "/command-center/:path*", permanent: false },
     ];
   },
 

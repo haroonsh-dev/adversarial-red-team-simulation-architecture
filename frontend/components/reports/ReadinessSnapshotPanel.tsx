@@ -72,9 +72,9 @@ export function ReadinessSnapshotPanel({ hasTraffic = false }: { hasTraffic?: bo
             </Link>
           </Button>
           <Button asChild size="sm" className="text-xs h-8 font-medium">
-            <Link href="/get-started">
+            <Link href="/reports">
               <Download className="h-3.5 w-3.5" />
-              Export Readiness
+              Export PDF
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>

@@ -1,5 +1,7 @@
 import {
   buildLiveAiActivity,
+  buildLiveMonitorEventRows,
+  eventTaxonomy,
   ingestDetectionStats,
   liveIngestStreamNewestFirst,
   telemetryToLiveMonitorEvents,
@@ -67,5 +69,25 @@ describe("redTeamLiveIngest", () => {
     expect(model.tools[0]?.tool).toBe("user_prompt");
     expect(model.detectors.some((d) => d.name.includes("PromptInjection"))).toBe(true);
     expect(model.riskSeries.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("exposes MITRE ATLAS and ASI tags on blotter rows", () => {
+    expect(eventTaxonomy({ mitre_atlas: "AML.T0051: Prompt Injection", asi_code: "ASI01" })).toEqual({
+      mitre: "AML.T0051",
+      asi: "ASI01",
+    });
+    const rows = buildLiveMonitorEventRows([
+      {
+        event_id: "e1",
+        agent_id: "harness",
+        tool_name: "user_prompt",
+        risk_score: 95,
+        verdict: "BREACHED",
+        mitre_atlas: "AML.T0054",
+        asi_code: "ASI10",
+      },
+    ]);
+    expect(rows[0]?.mitre).toBe("AML.T0054");
+    expect(rows[0]?.asi).toBe("ASI10");
   });
 });

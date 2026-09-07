@@ -37,12 +37,6 @@ export default function EvidencePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Evidence</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Forensic viewer — requests, responses, tool traces, timeline.
-          </p>
-        </div>
         {campaign ? (
           <Link
             href={`/red-team/monitor/${campaign.id}`}
@@ -70,12 +64,12 @@ export default function EvidencePage() {
       </div>
 
       {loading && !turn ? (
-        <p className="text-[13px] text-muted-foreground">Loading evidence…</p>
+        <p className="text-[13px] text-muted-foreground">Loading this session…</p>
       ) : !turn ? (
         <p className="text-[13px] text-muted-foreground">
           No rounds to inspect.{" "}
           <Link href="/red-team/campaigns" className="underline-offset-2 hover:underline">
-            Open a campaign
+            Open Campaigns
           </Link>
         </p>
       ) : (

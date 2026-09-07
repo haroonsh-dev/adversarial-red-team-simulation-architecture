@@ -129,7 +129,7 @@ export function ThreatMatrix() {
 
       {displayedThreats.length > 0 && (
         <div className="mt-4 flex justify-end">
-          <Button variant="outline" size="sm" className="gap-2 font-mono text-xs" onClick={() => router.push("/dashboard/topology")}>
+          <Button variant="outline" size="sm" className="gap-2 font-mono text-xs" onClick={() => router.push("/command-center/topology")}>
             <Zap className="h-3.5 w-3.5" aria-hidden />
             View topology graph
           </Button>

@@ -24,7 +24,7 @@ export function SecurityEventTable({
     return (
       <div className={cn("space-y-2 p-3", className)}>
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <div key={i} className="h-9 animate-pulse rounded-md bg-[#1e1e1e]" />
+          <div key={i} className="h-9 animate-pulse rounded-md bg-card" />
         ))}
       </div>
     );
@@ -37,7 +37,7 @@ export function SecurityEventTable({
   return (
     <div className={cn("overflow-auto", className)}>
       <table className="w-full min-w-[860px] text-left text-[12px]">
-        <thead className="sticky top-0 z-10 border-b border-[#313131] bg-[#141414] font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <thead className="sticky top-0 z-10 border-b border-border bg-muted font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
           <tr>
             <th className="px-3 py-2.5 font-medium">Time</th>
             <th className="px-3 py-2.5 font-medium">Severity</th>
@@ -57,14 +57,14 @@ export function SecurityEventTable({
               <tr
                 key={row.id}
                 className={cn(
-                  "cursor-pointer border-b border-[#313131]/70 transition-colors",
-                  selected ? "bg-[#1e1e1e]" : "hover:bg-[#161616]",
+                  "cursor-pointer border-b border-border/70 transition-colors",
+                  selected ? "bg-card" : "hover:bg-muted",
                   hot && !selected && "bg-[hsl(var(--severity-critical)/0.04)]"
                 )}
                 onClick={() => onSelect(row)}
                 aria-selected={selected}
               >
-                <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-[#a7a7a7]">
+                <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-muted-foreground">
                   {formatDateTime(row.timestamp, {
                     month: "short",
                     day: "numeric",
@@ -84,19 +84,19 @@ export function SecurityEventTable({
                 >
                   {row.action}
                 </td>
-                <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[11px] text-[#a7a7a7]">
+                <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[11px] text-muted-foreground">
                   {row.agentId || "—"}
                 </td>
-                <td className="max-w-[160px] truncate px-3 py-2 font-medium text-white">
+                <td className="max-w-[160px] truncate px-3 py-2 font-medium text-foreground">
                   {row.tool}
                 </td>
-                <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[10px] uppercase text-[#7c7c7c]">
+                <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[10px] uppercase text-muted-foreground">
                   {row.verdict || "—"}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tabular-nums text-white">
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-foreground">
                   {row.riskScore > 0 ? Math.round(row.riskScore) : "—"}
                 </td>
-                <td className="max-w-[100px] truncate px-3 py-2 font-mono text-[10px] text-[#7c7c7c]">
+                <td className="max-w-[100px] truncate px-3 py-2 font-mono text-[10px] text-muted-foreground">
                   {row.sessionId ? `${row.sessionId.slice(0, 10)}…` : "—"}
                 </td>
               </tr>

@@ -11,7 +11,7 @@ interface AssessmentCategoryBarsProps {
 export function AssessmentCategoryBars({ rows, className }: AssessmentCategoryBarsProps) {
   if (!rows.length) {
     return (
-      <p className="py-10 text-center text-[13px] text-[#7c7c7c]">
+      <p className="py-10 text-center text-[13px] text-muted-foreground">
         No category results yet.
       </p>
     );
@@ -23,16 +23,16 @@ export function AssessmentCategoryBars({ rows, className }: AssessmentCategoryBa
         <div key={row.lens} className="space-y-1.5">
           <div className="flex items-baseline justify-between gap-2">
             <div>
-              <span className="text-[13px] font-medium text-white">{row.lens}</span>
-              <span className="ml-2 font-mono text-[10px] text-[#7c7c7c]">
+              <span className="text-[13px] font-medium text-foreground">{row.lens}</span>
+              <span className="ml-2 font-mono text-[10px] text-muted-foreground">
                 {row.harmful}/{row.total} harmful
               </span>
             </div>
-            <span className="font-mono text-[13px] tabular-nums text-[#a7a7a7]">
+            <span className="font-mono text-[13px] tabular-nums text-muted-foreground">
               {row.riskScore}%
             </span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#1e1e1e]">
+          <div className="h-2 overflow-hidden rounded-full bg-card">
             <div
               className={cn(
                 "h-full rounded-full transition-all",

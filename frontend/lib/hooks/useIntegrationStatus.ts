@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchFromBackend } from "@/lib/api";
+import { hydrateAuthStore, useAuthStore } from "@/lib/stores/auth";
 
 export interface IntegrationStatus {
   customConnectors: number;
@@ -19,14 +20,29 @@ const EMPTY: IntegrationStatus = {
 export function useIntegrationStatus(apiOnline: boolean) {
   const [status, setStatus] = useState<IntegrationStatus>(EMPTY);
   const [loading, setLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(
+    () => typeof window !== "undefined" && useAuthStore.persist.hasHydrated()
+  );
 
   useEffect(() => {
-    if (!apiOnline) {
-      setStatus(EMPTY);
+    hydrateAuthStore();
+    if (useAuthStore.persist.hasHydrated()) {
+      setAuthReady(true);
+      return;
+    }
+    const unsub = useAuthStore.persist.onFinishHydration(() => setAuthReady(true));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!apiOnline || !authReady) {
+      if (!apiOnline) setStatus(EMPTY);
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
+
     void (async () => {
       try {
         const [custom, alerts, keys] = await Promise.all([
@@ -41,10 +57,11 @@ export function useIntegrationStatus(apiOnline: boolean) {
           }),
         ]);
 
+        if (cancelled) return;
+
         const customList = Array.isArray(custom?.integrations) ? custom.integrations : [];
         const alertList = Array.isArray(alerts?.integrations) ? alerts.integrations : [];
 
-        // Safely resolve ingestKeyConfigured regardless of whether keys is an array or object map
         let isConfigured = false;
         if (keys && typeof keys === "object") {
           const rawKeys = keys.keys ?? keys;
@@ -64,12 +81,16 @@ export function useIntegrationStatus(apiOnline: boolean) {
           ingestKeyConfigured: isConfigured,
         });
       } catch {
-        setStatus(EMPTY);
+        if (!cancelled) setStatus(EMPTY);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [apiOnline]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiOnline, authReady]);
 
   const outboundConnected = status.customConnectors > 0 || status.alertChannels > 0;
   const outboundCount = status.customConnectors + status.alertChannels;

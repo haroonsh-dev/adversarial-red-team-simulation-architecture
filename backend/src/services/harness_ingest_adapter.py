@@ -213,4 +213,6 @@ def enforcement_view(
         "action": action,
         "status": "blocked" if blocked else "allowed",
         "mode": "enforce",
+        "execution_allowed": pipeline_result.get("execution_allowed", not blocked),
+        "scan_phase": pipeline_result.get("scan_phase", "pre_exec"),
     }

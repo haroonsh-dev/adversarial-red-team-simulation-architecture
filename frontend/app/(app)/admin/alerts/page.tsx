@@ -114,8 +114,8 @@ export default function AdminAlertsPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Alerts & Integrations"
-        description="Route containment alerts to webhooks, Slack, PagerDuty, Splunk or Datadog — with risk thresholds."
+        title="Alerts"
+        description="Send alerts to Slack, email, or your own URL when risk is above a threshold."
         icon={<BellRing className="h-5 w-5" />}
         actions={<Badge variant="outline" className="meta-badge">{integrations.length} integrations</Badge>}
       />

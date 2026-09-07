@@ -44,7 +44,8 @@ function sessionToActivity(session: Session): Record<string, unknown> {
 }
 
 /**
- * When the WebSocket stream is empty, hydrate from telemetry REST then sessions API.
+ * Prefer live WS/buffer events; always fall back to REST telemetry so the feed
+ * is not an empty vertical panel while topology already has traffic.
  */
 export function useCommandCenterActivity(
   liveEvents: Array<Record<string, unknown>>,
@@ -56,8 +57,15 @@ export function useCommandCenterActivity(
     useIntegrationStatus(apiOnline);
 
   useEffect(() => {
-    if (!apiOnline || liveEvents.length > 0) {
+    if (!apiOnline) {
       setHydratedEvents([]);
+      return;
+    }
+
+    // Live buffer already includes REST/WS — don't mirror the same feed again.
+    if (liveEvents.length > 0) {
+      setHydratedEvents([]);
+      setHydrating(false);
       return;
     }
 
@@ -98,10 +106,9 @@ export function useCommandCenterActivity(
     })();
   }, [apiOnline, liveEvents.length]);
 
+  // Prefer the live bus; hydrated REST is only a cold-start fallback.
   const displayEvents =
-    liveEvents.length > 0
-      ? liveEvents
-      : mergeTelemetryEvents([], hydratedEvents);
+    liveEvents.length > 0 ? liveEvents : mergeTelemetryEvents([], hydratedEvents);
 
   return {
     displayEvents,

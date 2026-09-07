@@ -1,164 +1,152 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useMemo } from "react";
-import { isRedTeamHrefActive, redTeamNav, type LiveChromeState } from "@/lib/redTeamNav";
-import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { DetectSubNav } from "@/components/red-team/DetectSubNav";
+import { redTeamNav } from "@/lib/redTeamNav";
 
-type SectionMeta = {
-  title: string;
-  subtitle: string;
-};
-
-function resolveSection(pathname: string): SectionMeta {
+function resolveSection(pathname: string): { section: string; title: string; subtitle: string } {
+  if (pathname.startsWith("/red-team/surface")) {
+    return {
+      section: "Assess",
+      title: "Attack Surface",
+      subtitle: "What you have tested, and what is still exposed.",
+    };
+  }
   if (pathname.startsWith("/red-team/campaigns")) {
     return {
+      section: "Red Team",
       title: "Campaigns",
-      subtitle: "Launch scans, open theaters, follow live runs — cohort is for action, not reporting.",
+      subtitle: "Start a test, then watch it finish or fail.",
     };
   }
   if (pathname.startsWith("/red-team/lab")) {
     return {
+      section: "Red Team",
       title: "Attack Lab",
-      subtitle: "Probe containment now or launch a full Lab experiment against your target.",
+      subtitle: "Check a message now, or start a full lab run.",
+    };
+  }
+  if (pathname.startsWith("/red-team/library")) {
+    return {
+      section: "Red Team",
+      title: "Attack Library",
+      subtitle: "Templates you can run in Attack Lab.",
     };
   }
   if (pathname === "/red-team/monitor/live" || pathname.startsWith("/red-team/monitor/live/")) {
     return {
-      title: "Activity",
-      subtitle: "Live AI work stream — probe, contain, and jump into theaters as events land.",
+      section: "Detect",
+      title: "Detections",
+      subtitle: "Live events ARTSA flagged or blocked.",
     };
   }
   if (pathname === "/red-team/monitor" || pathname === "/red-team/monitor/") {
     return {
-      title: "Monitor",
-      subtitle:
-        "Watch live agent activity, risk trends, and campaign runs — then open what needs attention.",
+      section: "Detect",
+      title: "Detections",
+      subtitle: "Live events ARTSA flagged or blocked.",
     };
   }
   if (pathname.startsWith("/red-team/monitor/")) {
     return {
-      title: "Monitor",
-      subtitle: "Campaign theater — follow rounds and take the next containment action.",
+      section: "Detect",
+      title: "Detections",
+      subtitle: "One campaign run — from Detections in the sidebar.",
     };
   }
   if (pathname.startsWith("/red-team/matrix")) {
     return {
+      section: "Detect",
       title: "Outcomes",
-      subtitle: "Detection · prevention · leak by attack — open theater or retest in Lab.",
+      subtitle: "Detected, stopped, or leaked — by attack.",
     };
   }
   if (pathname.startsWith("/red-team/graph")) {
     return {
+      section: "Investigate",
       title: "Attack Graph",
-      subtitle: "Kill-chain stages from the live campaign — open theater or retest a hot stage.",
+      subtitle: "How an attack moved across stages.",
     };
   }
-  if (pathname.startsWith("/red-team/scoring")) {
+  if (pathname.startsWith("/red-team/evidence")) {
     return {
-      title: "Scoring",
-      subtitle: "Judge verdicts from live runs — probe or launch to produce the next score.",
+      section: "Investigate",
+      title: "Run detail",
+      subtitle: "Requests, responses, and the trail of one campaign.",
     };
   }
-
-  let best: { name: string; href: string } | null = null;
-  for (const group of redTeamNav) {
-    for (const item of group.items) {
-      if (!isRedTeamHrefActive(pathname, item.href, item.exact)) continue;
-      if (!best || item.href.length > best.href.length) best = item;
-    }
-  }
-  if (best) {
-    const blurbs: Record<string, string> = {
-      "Attack Lab": "Probe containment now or launch a full Lab experiment.",
-      Campaigns: "Launch scans and open theaters — cohort for action.",
-      Monitor: "Act on live risk — theaters, probe, launch.",
-      Activity: "Live AI work — probe and jump into theaters.",
-    };
+  if (pathname.startsWith("/red-team/findings")) {
     return {
-      title: best.name,
-      subtitle: blurbs[best.name] ?? "Red Team — probe, launch, contain.",
+      section: "Investigate",
+      title: "Findings",
+      subtitle: "Problems found from tests and live activity.",
+    };
+  }
+  if (pathname === "/red-team" || pathname === "/red-team/") {
+    return {
+      section: "Red Team",
+      title: "Red Team",
+      subtitle: "Check a message, run a campaign, then review detections.",
     };
   }
   return {
+    section: "Red Team",
     title: "Red Team",
-    subtitle: "Probe, launch campaigns, and contain — actions first.",
+    subtitle: "Check, launch campaigns, and contain.",
   };
 }
 
-function RedTeamShellInner({ children }: { children: React.ReactNode }) {
+const PREFETCH = [
+  "/red-team/lab",
+  "/red-team/campaigns",
+  "/red-team/library",
+  "/red-team/monitor",
+  "/red-team/matrix",
+  "/red-team/graph",
+  "/red-team/surface",
+];
+
+/** Dedicated Red Team chrome — header only; nav in main sidebar. */
+export function RedTeamShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const section = resolveSection(pathname);
 
-  const mode = searchParams.get("mode") === "research" ? "research" : "ops";
-  const section = useMemo(() => resolveSection(pathname), [pathname]);
-
-  const setMode = useCallback(
-    (next: "ops" | "research") => {
-      const q = new URLSearchParams(searchParams.toString());
-      if (next === "research") q.set("mode", "research");
-      else q.delete("mode");
-      const qs = q.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams]
-  );
+  useEffect(() => {
+    for (const href of PREFETCH) {
+      router.prefetch(href);
+    }
+    for (const group of redTeamNav) {
+      for (const item of group.items) {
+        router.prefetch(item.href);
+      }
+    }
+  }, [router]);
 
   return (
     <div className="red-team-workspace -mx-1 min-h-[calc(100vh-7rem)]">
       <header className="mb-4 max-w-3xl pb-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Red Team
+          {section.section}
         </p>
         <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
           {section.title}
         </h1>
         <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{section.subtitle}</p>
-        <div className="mt-3 flex gap-4 text-[12px]">
-          <button
-            type="button"
-            onClick={() => setMode("ops")}
-            className={cn(
-              "transition-colors",
-              mode === "ops"
-                ? "font-medium text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Ops
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("research")}
-            className={cn(
-              "transition-colors",
-              mode === "research"
-                ? "font-medium text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Research
-          </button>
-        </div>
       </header>
+
+      {section.section === "Detect" ? <DetectSubNav /> : null}
 
       <div className="min-w-0">{children}</div>
     </div>
   );
 }
 
-/** Dedicated Red Team chrome — header only; nav in main sidebar. */
-export function RedTeamShell({ children }: { children: React.ReactNode }) {
-  return (
-    <Suspense fallback={<div className="min-h-[40vh] animate-pulse rounded-md bg-muted/20" />}>
-      <RedTeamShellInner>{children}</RedTeamShellInner>
-    </Suspense>
-  );
-}
-
 /** Kept for theater pages; header no longer renders chrome badges. */
-export function publishRedTeamChrome(state: LiveChromeState) {
+export function publishRedTeamChrome(
+  state: import("@/lib/redTeamNav").LiveChromeState
+) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("artsa:redteam-chrome", { detail: { state } }));
 }

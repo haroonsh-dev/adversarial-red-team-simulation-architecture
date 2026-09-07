@@ -7,7 +7,7 @@ const FRAMEWORKS = ["OWASP LLM Top 10", "MITRE ATLAS", "NIST AI RMF", "EU AI Act
 
 export function LandingImpact() {
   return (
-    <section id="impact" className="lp-section border-t border-[var(--color-steel-border)] bg-[var(--color-deep-coal)]">
+    <section id="impact" className="lp-section">
       <div className="lp-shell">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -16,11 +16,11 @@ export function LandingImpact() {
           transition={{ duration: 0.45, ease: easeOut }}
           className="max-w-2xl"
         >
-          <p className="lp-eyebrow">Enterprise trust</p>
-          <h2 className="lp-heading mt-6">There is so much left to secure</h2>
+          <p className="lp-eyebrow">Customer stories</p>
+          <h2 className="lp-heading mt-6">Trusted by teams operating agent fleets</h2>
           <p className="lp-body mt-4">
             ARTSA customers run containment, red-team testing, and audit exports in the same
-            operating system — from the SOC to the boardroom.
+            control plane — from the SOC floor to the board pack.
           </p>
         </motion.div>
 

@@ -107,6 +107,19 @@ def test_websocket_ticket_is_single_use(monkeypatch):
         pass
 
 
+def test_websocket_ticket_replay_is_stored_in_redis():
+    from src.core.rbac import Role
+    from src.core.ws_tickets import create_ws_ticket, verify_ws_ticket
+    from src.data.redis_client import get_redis_stream_client, reset_redis_client
+
+    reset_redis_client()
+    ticket = create_ws_ticket(Role.ANALYST)
+    assert verify_ws_ticket(ticket) is not None
+    stored = getattr(get_redis_stream_client(), "_kv", {})
+    assert any(k.startswith("artsa:ws:ticket:") for k in stored)
+    assert verify_ws_ticket(ticket) is None
+
+
 def test_websocket_rejects_tampered_ticket(monkeypatch):
     monkeypatch.setattr(settings, "ARTSA_API_KEY", "ws-test-secret-key-12345")
     monkeypatch.setattr(settings, "ENVIRONMENT", "development")

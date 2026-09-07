@@ -431,7 +431,7 @@ export function PersonalInfoSection({
                     {isMonogramAvatar && (
                       <span
                         style={{ backgroundColor: activeColorObj.color }}
-                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white shadow-xs"
+                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-foreground shadow-xs"
                       >
                         <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
                       </span>
@@ -475,7 +475,7 @@ export function PersonalInfoSection({
                         {isSelected && (
                           <span
                             style={{ backgroundColor: activeColorObj.color }}
-                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white shadow-xs"
+                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-foreground shadow-xs"
                           >
                             <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
                           </span>
@@ -525,7 +525,7 @@ export function PersonalInfoSection({
                         {isSelected && (
                           <span
                             style={{ backgroundColor: activeColorObj.color }}
-                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white shadow-xs"
+                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-foreground shadow-xs"
                           >
                             <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
                           </span>
@@ -584,7 +584,7 @@ export function PersonalInfoSection({
                         {isSelected && (
                           <span
                             style={{ backgroundColor: color.color }}
-                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-white shadow-xs"
+                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-foreground shadow-xs"
                           >
                             <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
                           </span>

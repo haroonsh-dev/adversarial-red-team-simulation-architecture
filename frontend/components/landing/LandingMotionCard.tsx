@@ -10,6 +10,8 @@ interface LandingMotionCardProps {
   className?: string;
   index?: number;
   glow?: boolean;
+  /** Skip reveal animation — use on app surfaces that must feel instant. */
+  instant?: boolean;
 }
 
 /** Landing card — reveal on scroll, lift on hover, optional amber edge glow. */
@@ -18,7 +20,22 @@ export function LandingMotionCard({
   className,
   index = 0,
   glow = true,
+  instant = false,
 }: LandingMotionCardProps) {
+  if (instant) {
+    return (
+      <div
+        className={cn(
+          "landing-motion-card surface-panel group relative overflow-hidden",
+          glow && "landing-motion-card--glow",
+          className
+        )}
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <motion.div
       className={cn(

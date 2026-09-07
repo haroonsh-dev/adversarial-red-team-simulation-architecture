@@ -22,6 +22,10 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
+from src.compat.langchain_globals import patch_langchain_globals  # noqa: E402
+
+patch_langchain_globals()
+
 HOST = os.getenv("ARTSA_HOST", "127.0.0.1")
 PORT = int(os.getenv("ARTSA_PORT", "8000"))
 RELOAD = os.getenv("ARTSA_RELOAD", "false").lower() in ("1", "true", "yes")

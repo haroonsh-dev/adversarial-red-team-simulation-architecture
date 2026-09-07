@@ -4,6 +4,12 @@ from fastapi import APIRouter, Response, status
 
 from src.core.auth_credentials import any_static_api_key_configured
 from src.core.config import settings
+from src.core.readiness import (
+    database_readiness_async,
+    embeddings_readiness,
+    redis_readiness,
+    signing_key_readiness,
+)
 from src.data.redis_client import redis_is_live
 
 router = APIRouter(tags=["Health"])
@@ -68,15 +74,9 @@ async def get_ready(response: Response):
     checks: dict[str, str] = {}
     ready = True
 
-    # Database engine must construct
-    try:
-        if not settings.is_testing:
-            from src.data.db import get_engine
-
-            get_engine()
-        checks["database"] = "ok"
-    except Exception as exc:
-        checks["database"] = f"error: {exc}"
+    db_ok, db_detail = await database_readiness_async()
+    checks["database"] = db_detail
+    if not db_ok:
         ready = False
 
     if settings.auth_required:
@@ -94,7 +94,21 @@ async def get_ready(response: Response):
     else:
         checks["cors"] = "ok"
 
-    checks["redis"] = "live" if redis_is_live() else "fallback"
+    redis_ok, redis_detail = redis_readiness()
+    checks["redis"] = redis_detail
+    if not redis_ok:
+        ready = False
+
+    embed_ok, embed_detail = embeddings_readiness()
+    checks["embeddings"] = embed_detail
+    if not embed_ok:
+        ready = False
+
+    sign_ok, sign_detail = signing_key_readiness()
+    checks["signing_key"] = sign_detail
+    if not sign_ok:
+        ready = False
+
     checks["auto_enforce"] = "on" if settings.ARTSA_AUTO_ENFORCE else "off"
 
     if not ready:

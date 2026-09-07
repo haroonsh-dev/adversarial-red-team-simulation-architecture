@@ -77,13 +77,13 @@ export default function MultiAgentTopologyGraph() {
           <Button asChild variant="outline" size="sm">
             <Link href="/logs">
               <ScrollText className="h-3.5 w-3.5" aria-hidden />
-              Activity log
+              Activity
             </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/sandbox">
+            <Link href="/red-team/lab">
               <Crosshair className="h-3.5 w-3.5" aria-hidden />
-              Generate live traffic
+              Attack Lab
             </Link>
           </Button>
         </div>

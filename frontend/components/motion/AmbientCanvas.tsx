@@ -8,8 +8,7 @@ interface AmbientCanvasProps {
 }
 
 /**
- * Dovetail blueprint grid — flat page ink + subtle wireframe.
- * No chromatic orbs or multi-color mesh.
+ * Soft sky + pistachio glow on obsidian — no grid wireframe.
  */
 export function AmbientCanvas({ variant = "app", className }: AmbientCanvasProps) {
   return (

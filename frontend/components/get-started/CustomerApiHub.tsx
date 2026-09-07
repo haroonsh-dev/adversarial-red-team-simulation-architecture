@@ -10,26 +10,23 @@
  * - Clear next action at every state.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Key,
   Copy,
   Check,
   Terminal,
   ShieldCheck,
   Play,
-  Plus,
   Eye,
   EyeOff,
   Trash2,
   Loader2,
   X,
+  TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { DashboardCard } from "@/components/shared/DashboardCard";
 import { toast } from "@/lib/stores/toast";
 import { fetchFromBackend } from "@/lib/api";
 import { ingestApiBaseUrl } from "@/lib/ingestSnippet";
@@ -54,7 +51,7 @@ const LANG_TABS: { id: LanguageTab; label: string }[] = [
   { id: "curl", label: "cURL" },
 ];
 
-export function CustomerApiHub() {
+export function CustomerApiHub({ clientMode = false }: { clientMode?: boolean }) {
   const apiBase = ingestApiBaseUrl();
   const [keys, setKeys] = useState<CustomerKeyRow[]>([]);
   /** Full key only right after create — never reloaded from server. */
@@ -66,12 +63,13 @@ export function CustomerApiHub() {
   const [copied, setCopied] = useState<"key" | "code" | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingKeys, setLoadingKeys] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<"form" | "reveal">("form");
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [hasReceivedEvent, setHasReceivedEvent] = useState(false);
   const [baselineLoading, setBaselineLoading] = useState(false);
-  const [runBaselineOnCreate, setRunBaselineOnCreate] = useState(false);
-  const [enableWeeklyBaseline, setEnableWeeklyBaseline] = useState(false);
-  const [scheduleInfo, setScheduleInfo] = useState<Record<string, unknown> | null>(null);
-  const [tickerInfo, setTickerInfo] = useState<Record<string, unknown> | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [lastCampaign, setLastCampaign] = useState<{
     id?: string;
     status?: string;
@@ -113,8 +111,6 @@ export function CustomerApiHub() {
         error?: string;
       } | null;
     }>("/api/v1/campaigns/baseline/schedule", { silent: true });
-    setScheduleInfo(sched?.schedule ?? null);
-    setTickerInfo(sched?.ticker ?? null);
     setLastCampaign(sched?.last_campaign ?? null);
   }, []);
 
@@ -138,28 +134,21 @@ export function CustomerApiHub() {
     return `${freshKey.slice(0, 11)}${"•".repeat(18)}${freshKey.slice(-4)}`;
   }, [freshKey, showKey]);
 
-  const dismissFreshKey = () => {
-    setFreshKey(null);
-    setFreshKeyName("");
-    setShowKey(true);
-  };
-
   const handleGenerateKey = async () => {
-    const name = keyName.trim() || `customer-${keys.length + 1}`;
+    const name = keyName.trim();
+    if (!name) {
+      nameInputRef.current?.focus();
+      return;
+    }
     setIsGenerating(true);
     const res = await fetchFromBackend<{
       status?: string;
       key?: CustomerKeyRow;
-      baseline?: { campaign_id?: string; wargame_href?: string };
-      baseline_error?: string;
-      schedule?: Record<string, unknown>;
     }>("/api/v1/api-keys", {
       method: "POST",
       body: JSON.stringify({
         name,
         role: "analyst",
-        run_baseline: runBaselineOnCreate,
-        enable_weekly_baseline: enableWeeklyBaseline,
       }),
       timeoutMs: 12_000,
     });
@@ -169,36 +158,27 @@ export function CustomerApiHub() {
       setFreshKeyName(res.key.name || name);
       setShowKey(true);
       setKeyName("");
-      toast("Key ready to share", {
-        description: "Copy it below and share it with your customer securely.",
-        variant: "success",
-      });
-      if (res.schedule) setScheduleInfo(res.schedule);
-      if (res.baseline?.campaign_id) {
-        toast("Baseline scan started", {
-          description: `Campaign ${res.baseline.campaign_id}`,
-          variant: "success",
-        });
-      } else if (res.baseline_error) {
-        toast("Baseline skipped", {
-          description: String(res.baseline_error),
-          variant: "error",
-        });
-      }
+      setCreateOpen(true);
+      setCreateStep("reveal");
       void loadKeys();
     }
   };
 
-  const handleRevoke = async (id: string, name: string) => {
+  const handleRevoke = async () => {
+    if (!revokeTarget) return;
+    setIsRevoking(true);
+    const { id, name } = revokeTarget;
     const res = await fetchFromBackend<{ status?: string }>(`/api/v1/api-keys/${id}`, {
       method: "DELETE",
       silent: true,
     });
+    setIsRevoking(false);
     if (res?.status === "ok") {
-      toast("Access removed", {
+      toast("Key revoked", {
         description: `“${name}” can no longer call ARTSA.`,
         variant: "success",
       });
+      setRevokeTarget(null);
       void loadKeys();
     }
   };
@@ -208,18 +188,52 @@ export function CustomerApiHub() {
     try {
       await navigator.clipboard.writeText(freshKey);
       setCopied("key");
-      toast("Copied", { description: "Paste this into your customer’s environment.", variant: "success" });
+      toast("Copied", { description: "Save this key now — you will not see it again.", variant: "success" });
       setTimeout(() => setCopied(null), 2000);
     } catch {
-      toast("Copy failed", { description: "Select the key and copy manually.", variant: "error" });
+      toast("Copy failed", { description: "Select the key and copy it yourself.", variant: "error" });
     }
+  };
+
+  const openCreateModal = () => {
+    setKeyName("");
+    setCreateStep("form");
+    setCreateOpen(true);
+    window.setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  const closeCreateModal = () => {
+    if (isGenerating) return;
+    setCreateOpen(false);
+    setCreateStep("form");
+  };
+
+  useEffect(() => {
+    if (!createOpen && !revokeTarget) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (revokeTarget && !isRevoking) {
+        setRevokeTarget(null);
+        return;
+      }
+      if (createOpen && createStep === "form") closeCreateModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [createOpen, createStep, isGenerating, isRevoking, revokeTarget]);
+
+  const formatCreated = (iso?: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   };
 
   const handleCopyCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied("code");
-      toast("Code copied", { description: "Paste into the customer application.", variant: "success" });
+      toast("Code copied", { description: "Paste it into your app.", variant: "success" });
       setTimeout(() => setCopied(null), 2000);
     } catch {
       toast("Copy failed", { variant: "error" });
@@ -466,436 +480,424 @@ await client.guardToolCall({
   const hasKeys = keys.length > 0;
 
   return (
-    <div className="space-y-6">
-      {/* What to do — plain language for clients */}
-      <div className="rounded-[8px] border border-[#313131] bg-[#1e1e1e] px-5 py-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#6798ff]">
-          How customers use ARTSA
-        </p>
-        <ol className="mt-3 grid gap-3 sm:grid-cols-3">
-          <li className="text-[13px] leading-relaxed text-[#a7a7a7]">
-            <span className="font-medium text-white">1. Create a key</span>
-            <br />
-            Name it for the customer or their system.
-          </li>
-          <li className="text-[13px] leading-relaxed text-[#a7a7a7]">
-            <span className="font-medium text-white">2. Share it once</span>
-            <br />
-            They add it as <span className="font-mono text-[#e8e8e8]">X-API-Key</span>.
-          </li>
-          <li className="text-[13px] leading-relaxed text-[#a7a7a7]">
-            <span className="font-medium text-white">3. They call your API</span>
-            <br />
-            Before each tool — block if ARTSA says so.
-          </li>
-        </ol>
-      </div>
-
-      <DashboardCard
-        title="API keys"
-        description="Issue a key per customer. Revoke anytime."
-        icon={<Key className="h-4 w-4" />}
-        badge={
-          <Badge variant="outline" className="meta-badge font-mono text-[10px]">
-            {loadingKeys ? "…" : `${keys.length} active`}
-          </Badge>
-        }
-      >
-        <div className="space-y-5">
-          {/* Create */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <label htmlFor="customer-key-name" className="mb-1.5 block text-[13px] font-medium text-[#a7a7a7]">
-                Name for this key
-              </label>
-              <Input
-                id="customer-key-name"
-                value={keyName}
-                onChange={(e) => setKeyName(e.target.value)}
-                placeholder="e.g. Acme production bot"
-                className="h-10 text-[14px]"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleGenerateKey();
-                }}
-              />
-            </div>
-            <Button
-              onClick={() => void handleGenerateKey()}
-              disabled={isGenerating}
-              className="h-10 shrink-0 gap-2 px-5"
-            >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden />
-              )}
-              {isGenerating ? "Creating…" : hasKeys ? "Create another key" : "Create API key"}
-            </Button>
+    <div className="space-y-10">
+      <section>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl space-y-1">
+            <h2 className="text-[17px] font-semibold tracking-tight text-foreground">API keys</h2>
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Create a secret key for your app, copy it, then store it yourself. ARTSA cannot show the full key
+              again.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-4 text-[12px] text-[#a7a7a7]">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={runBaselineOnCreate}
-                onChange={(e) => setRunBaselineOnCreate(e.target.checked)}
-                className="rounded border-[#313131]"
-              />
-              Run baseline wargame on create
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enableWeeklyBaseline}
-                onChange={(e) => setEnableWeeklyBaseline(e.target.checked)}
-                className="rounded border-[#313131]"
-              />
-              Enable weekly baseline
-            </label>
-          </div>
-          {scheduleInfo || tickerInfo || lastCampaign?.id ? (
-            <div className="rounded-[8px] border border-[#313131] bg-[#0a0a0a] px-3 py-2 text-[11px] text-[#a7a7a7]">
-              {scheduleInfo ? (
-                <p>
-                  Schedule: {String(scheduleInfo.enabled ? "on" : "off")} · every{" "}
-                  {String(scheduleInfo.interval_days ?? 7)}d
-                  {scheduleInfo.next_run_at
-                    ? ` · next ${String(scheduleInfo.next_run_at).slice(0, 16)}`
-                    : ""}
-                </p>
-              ) : null}
-              {tickerInfo ? (
-                <p className={scheduleInfo ? "mt-1" : undefined}>
-                  In-process ticker: {String(tickerInfo.enabled ? "on" : "off")}
-                  {tickerInfo.next_tick_at
-                    ? ` · next check ${String(tickerInfo.next_tick_at).slice(0, 16)}`
-                    : ""}
-                </p>
-              ) : null}
-              {lastCampaign?.id ? (
-                <p className="mt-1 flex flex-wrap items-center gap-2">
-                  Last baseline:{" "}
-                  <span className="font-mono text-[#e8e8e8]">
-                    {lastCampaign.status ?? "—"}
-                    {typeof lastCampaign.rounds_completed === "number"
-                      ? ` · ${lastCampaign.rounds_completed}/${lastCampaign.total_rounds ?? "?"}r`
-                      : ""}
-                  </span>
-                  {lastCampaign.wargame_href ? (
-                    <Link
-                      href={lastCampaign.wargame_href}
-                      className="font-medium text-[#6798ff] hover:underline"
-                    >
-                      Open wargame →
-                    </Link>
-                  ) : null}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* One-time reveal — ONLY after create. Never show empty jargon. */}
-          {freshKey ? (
-            <div
-              className="rounded-[8px] border border-[hsl(var(--status-success-border))] bg-[hsl(var(--status-success-subtle))] p-4"
-              role="status"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[14px] font-medium text-white">
-                    Key created{freshKeyName ? ` — ${freshKeyName}` : ""}
-                  </p>
-                  <p className="mt-1 text-[12px] text-[#a7a7a7]">
-                    Copy now and share it with your customer. For security, ARTSA will not show the full
-                    key again.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={dismissFreshKey}
-                  className="rounded-[6px] p-1 text-[#7c7c7c] hover:bg-black/20 hover:text-white"
-                  aria-label="Dismiss"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <code className="min-w-0 flex-1 select-all break-all rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-3 py-2.5 font-mono text-[13px] text-white">
-                  {displayKey}
-                </code>
-                <div className="flex shrink-0 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-10 gap-1.5"
-                    onClick={() => setShowKey((v) => !v)}
-                  >
-                    {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    {showKey ? "Hide" : "Show"}
-                  </Button>
-                  <Button type="button" size="sm" className="h-10 gap-1.5" onClick={() => void handleCopyKey()}>
-                    {copied === "key" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied === "key" ? "Copied" : "Copy key"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Active keys table */}
-          <div>
-            <p className="mb-2 text-[13px] font-medium text-[#a7a7a7]">Your keys</p>
-            {loadingKeys ? (
-              <div className="flex items-center gap-2 py-6 text-[13px] text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Loading keys…
-              </div>
-            ) : !hasKeys ? (
-              <div className="rounded-[8px] border border-dashed border-[#313131] px-4 py-8 text-center">
-                <p className="text-[14px] font-medium text-white">No API keys yet</p>
-                <p className="mt-1 text-[13px] text-[#a7a7a7]">
-                  Create one above, then share it with the customer integrating ARTSA.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-[8px] border border-[#313131]">
-                <table className="w-full text-left text-[13px]">
-                  <thead className="border-b border-[#313131] bg-[#0a0a0a] text-[11px] uppercase tracking-[0.06em] text-[#7c7c7c]">
-                    <tr>
-                      <th className="px-3 py-2.5 font-medium">Name</th>
-                      <th className="px-3 py-2.5 font-medium">Key</th>
-                      <th className="px-3 py-2.5 font-medium">Access</th>
-                      <th className="px-3 py-2.5 text-right font-medium"> </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {keys.map((k) => (
-                      <tr key={k.id} className="border-b border-[#313131]/80 last:border-0">
-                        <td className="px-3 py-3 font-medium text-white">{k.name}</td>
-                        <td className="px-3 py-3 font-mono text-[12px] text-[#a7a7a7]">
-                          {k.api_key_masked}
-                        </td>
-                        <td className="px-3 py-3 text-[#a7a7a7]">
-                          {k.role === "analyst" ? "Ingest & view" : k.role}
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1.5 text-[#a7a7a7] hover:text-destructive"
-                            onClick={() => void handleRevoke(k.id, k.name)}
-                            aria-label={`Remove access for ${k.name}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Revoke
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="border-t border-[#313131] bg-[#0a0a0a] px-3 py-2 text-[12px] text-[#7c7c7c]">
-                  Full keys are only shown once at creation. Masked values are for identification.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </DashboardCard>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-        <DashboardCard
-          className="xl:col-span-3"
-          title="Integration code"
-          description={
-            freshKey
-              ? "This sample already includes the key you just created."
-              : "Replace YOUR_ARTSA_API_KEY with the key you shared with the customer."
-          }
-          icon={<Terminal className="h-4 w-4" />}
-          actions={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => void handleCopyCode(codeSnippets[activeTab])}
-            >
-              {copied === "code" ? (
-                <Check className="h-3.5 w-3.5 text-status-success" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-              {copied === "code" ? "Copied" : "Copy code"}
-            </Button>
-          }
-          contentClassName="space-y-0 pt-0"
-        >
-          <div className="mb-3 flex flex-wrap gap-1 rounded-[8px] border border-[#313131] bg-[#0a0a0a] p-1">
-            {LANG_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "rounded-[6px] px-3 py-1.5 text-[12px] font-medium transition-colors",
-                  activeTab === tab.id
-                    ? "bg-white text-[#0a0a0a]"
-                    : "text-[#a7a7a7] hover:text-white"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="max-h-[320px] overflow-auto rounded-[8px] border border-[#313131] bg-[#0a0a0a] p-4">
-            <pre className="font-mono text-[12px] leading-relaxed text-[#e8e8e8]">
-              <code>{codeSnippets[activeTab]}</code>
-            </pre>
-          </div>
-          <p className="mt-3 text-[12px] text-[#7c7c7c]">
-            Endpoint:{" "}
-            <span className="font-mono text-[#a7a7a7]">
-              {apiBase}/api/v1/ingest
-            </span>
-          </p>
-        </DashboardCard>
-
-        <DashboardCard
-          className="xl:col-span-2"
-          title="Try it here"
-          description="Paste a message — ARTSA picks tool/agent — or send a fixed ingest sample."
-          icon={<ShieldCheck className="h-4 w-4" />}
-        >
-          <label htmlFor="situation-msg" className="mb-1.5 block text-[12px] font-medium text-[#a7a7a7]">
-            Free-text situation (auto tool + agent)
-          </label>
-          <textarea
-            id="situation-msg"
-            value={situationMessage}
-            onChange={(e) => setSituationMessage(e.target.value)}
-            rows={3}
-            className="mb-2 w-full rounded-[8px] border border-[#313131] bg-[#0a0a0a] px-3 py-2 font-mono text-[11px] text-[#e8e8e8] outline-none focus:border-[#525252]"
-          />
           <Button
             type="button"
             size="sm"
-            className="mb-4 h-9 w-full gap-1.5"
-            disabled={isSendingTest || !situationMessage.trim()}
-            onClick={() => void handleSituationEvaluate()}
+            className="h-9 shrink-0 px-3.5 text-[13px]"
+            onClick={openCreateModal}
+            disabled={isGenerating}
           >
-            {isSendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            Auto-classify & score
+            Create new secret key
           </Button>
+        </div>
 
-          {!hasReceivedEvent ? (
-            <div className="rounded-[8px] border border-dashed border-[#313131] bg-[#0a0a0a] px-4 py-8 text-center">
-              <p className="text-[14px] font-medium text-white">No test yet</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-[#a7a7a7]">
-                Paste a jailbreak, or use a safe / attack ingest sample.
+        <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
+          {loadingKeys ? (
+            <div className="flex items-center gap-2 px-5 py-12 text-[13px] text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Loading keys…
+            </div>
+          ) : !hasKeys ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-[14px] font-medium text-foreground">No secret keys</p>
+              <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+                Create one to connect your app. You will only see the full secret once.
               </p>
             </div>
           ) : (
-            <div className="rounded-[8px] border border-[#313131] bg-[#0a0a0a] p-4">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[13px] font-medium text-white">
-                  <ShieldCheck className="h-4 w-4 text-status-success" aria-hidden />
-                  Response received
-                </span>
-                <span className="font-mono text-[11px] text-[#7c7c7c]">
-                  {lastEventVerdict?.latency} ms
-                </span>
+            <>
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-[12px] font-medium text-muted-foreground">
+                    <th className="px-5 py-3 font-medium">Name</th>
+                    <th className="px-5 py-3 font-medium">Secret key</th>
+                    <th className="hidden px-5 py-3 font-medium sm:table-cell">Created</th>
+                    <th className="w-12 px-3 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keys.map((k) => (
+                    <tr
+                      key={k.id}
+                      className="border-b border-border/70 last:border-0 hover:bg-muted/40"
+                    >
+                      <td className="px-5 py-3.5 font-medium text-foreground">{k.name}</td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] tracking-wide text-muted-foreground">
+                        {k.api_key_masked}
+                      </td>
+                      <td className="hidden px-5 py-3.5 text-muted-foreground sm:table-cell">
+                        {formatCreated(k.created_at)}
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setRevokeTarget({ id: k.id, name: k.name })}
+                          aria-label={`Revoke ${k.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="border-t border-border px-5 py-3 text-[12px] text-muted-foreground">
+                Full keys are shown only once at creation. Masked values are for identification.
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      {!clientMode ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+          <section className="xl:col-span-3">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-foreground">
+                  <Terminal className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  Sample code
+                </h3>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {freshKey
+                    ? "This sample already includes the key you just created."
+                    : "Replace YOUR_ARTSA_API_KEY with the key you copied."}
+                </p>
               </div>
-              <dl className="mt-3 space-y-2 border-t border-[#313131] pt-3 text-[12px]">
-                {lastEventVerdict?.situation ? (
-                  <div className="flex justify-between">
-                    <dt className="text-[#7c7c7c]">Situation</dt>
-                    <dd className="font-mono text-white">{lastEventVerdict.situation}</dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between">
-                  <dt className="text-[#7c7c7c]">Tool</dt>
-                  <dd className="font-mono text-white">{lastEventVerdict?.tool}</dd>
-                </div>
-                {lastEventVerdict?.agent ? (
-                  <div className="flex justify-between">
-                    <dt className="text-[#7c7c7c]">Agent</dt>
-                    <dd className="font-mono text-white">{lastEventVerdict.agent}</dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between">
-                  <dt className="text-[#7c7c7c]">Risk</dt>
-                  <dd className="font-mono text-white">{lastEventVerdict?.riskScore}/100</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-[#7c7c7c]">Result</dt>
-                  <dd
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => void handleCopyCode(codeSnippets[activeTab])}
+              >
+                {copied === "code" ? (
+                  <Check className="h-3.5 w-3.5 text-status-success" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {copied === "code" ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="flex flex-wrap gap-0.5 border-b border-border bg-muted/30 p-1.5">
+                {LANG_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "font-medium",
-                      lastEventVerdict?.verdict === "Blocked"
-                        ? "text-[hsl(var(--severity-critical))]"
-                        : "text-status-success"
+                      "rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors",
+                      activeTab === tab.id
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {lastEventVerdict?.verdict}
-                  </dd>
-                </div>
-                {lastEventVerdict?.sessionId ? (
-                  <div className="pt-1">
-                    <Link
-                      href={`/logs?session=${encodeURIComponent(lastEventVerdict.sessionId)}`}
-                      className="text-[12px] font-medium text-[#6798ff] hover:underline"
-                    >
-                      Open in Logs →
-                    </Link>
-                  </div>
-                ) : null}
-              </dl>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <pre className="max-h-[320px] overflow-auto p-4 font-mono text-[12px] leading-relaxed text-foreground">
+                <code>{codeSnippets[activeTab]}</code>
+              </pre>
             </div>
-          )}
+          </section>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5"
-              disabled={isSendingTest}
-              onClick={() => void handleSendTestEvent(false)}
-            >
-              {isSendingTest ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <section className="xl:col-span-2">
+            <h3 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-foreground">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden />
+              Try a message
+            </h3>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Paste something an agent might say, or send a sample.
+            </p>
+            <div className="mt-3 rounded-xl border border-border bg-card p-4">
+              <label htmlFor="situation-msg" className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
+                Message
+              </label>
+              <textarea
+                id="situation-msg"
+                value={situationMessage}
+                onChange={(e) => setSituationMessage(e.target.value)}
+                rows={3}
+                className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="mb-4 h-9 w-full"
+                disabled={isSendingTest || !situationMessage.trim()}
+                onClick={() => void handleSituationEvaluate()}
+              >
+                {isSendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                Check this message
+              </Button>
+
+              {!hasReceivedEvent ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                  <p className="text-[13px] text-muted-foreground">No result yet</p>
+                </div>
               ) : (
-                <Play className="h-3.5 w-3.5" />
+                <div className="rounded-lg border border-border bg-background p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                      <ShieldCheck className="h-4 w-4 text-status-success" aria-hidden />
+                      Checked
+                    </span>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {lastEventVerdict?.latency} ms
+                    </span>
+                  </div>
+                  <dl className="mt-3 space-y-2 border-t border-border pt-3 text-[12px]">
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">Risk</dt>
+                      <dd className="font-medium text-foreground">{lastEventVerdict?.riskScore}/100</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">Result</dt>
+                      <dd
+                        className={cn(
+                          "font-medium",
+                          lastEventVerdict?.verdict === "Blocked"
+                            ? "text-[hsl(var(--severity-critical))]"
+                            : "text-status-success"
+                        )}
+                      >
+                        {lastEventVerdict?.verdict}
+                      </dd>
+                    </div>
+                    {lastEventVerdict?.sessionId ? (
+                      <div className="pt-1">
+                        <Link
+                          href={`/logs?session=${encodeURIComponent(lastEventVerdict.sessionId)}`}
+                          className="text-[12px] font-medium text-foreground underline underline-offset-4"
+                        >
+                          Open in Activity
+                        </Link>
+                      </div>
+                    ) : null}
+                  </dl>
+                </div>
               )}
-              Safe sample
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5"
-              disabled={isSendingTest}
-              onClick={() => void handleSendTestEvent(true)}
-            >
-              <Play className="h-3.5 w-3.5" />
-              Attack sample
-            </Button>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="mt-2 h-9 w-full gap-1.5"
-            disabled={baselineLoading}
-            onClick={() => void handleBaselineScan()}
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={isSendingTest}
+                  onClick={() => void handleSendTestEvent(false)}
+                >
+                  Safe sample
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={isSendingTest}
+                  onClick={() => void handleSendTestEvent(true)}
+                >
+                  Attack sample
+                </Button>
+              </div>
+              {lastCampaign?.id && lastCampaign.wargame_href ? (
+                <p className="mt-3 text-[12px] text-muted-foreground">
+                  Last practice test: {lastCampaign.status ?? "—"} ·{" "}
+                  <Link href={lastCampaign.wargame_href} className="font-medium text-foreground underline underline-offset-4">
+                    Open
+                  </Link>
+                </p>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-8 w-full text-muted-foreground"
+                  disabled={baselineLoading}
+                  onClick={() => void handleBaselineScan()}
+                >
+                  {baselineLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Run a practice attack
+                </Button>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {createOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 p-4 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={createStep === "form" ? closeCreateModal : undefined}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-key-title"
+            className="relative w-full max-w-[440px] rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
           >
-            {baselineLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            Run baseline wargame
-          </Button>
-        </DashboardCard>
-      </div>
+            {createStep === "form" ? (
+              <>
+                <button
+                  type="button"
+                  className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={closeCreateModal}
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <h2 id="create-key-title" className="pr-8 text-[18px] font-semibold tracking-tight text-foreground">
+                  Create new secret key
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                  Give this key a name so you can tell it apart in the list.
+                </p>
+                <label htmlFor="customer-key-name" className="mt-5 mb-1.5 block text-[13px] font-medium text-foreground">
+                  Name
+                </label>
+                <Input
+                  id="customer-key-name"
+                  ref={nameInputRef}
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  placeholder="e.g. Production bot"
+                  required
+                  className="h-10 text-[14px]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleGenerateKey();
+                  }}
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" className="h-9" onClick={closeCreateModal}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 px-4"
+                    disabled={isGenerating || !keyName.trim()}
+                    onClick={() => void handleGenerateKey()}
+                  >
+                    {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    {isGenerating ? "Creating…" : "Create secret key"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="create-key-title" className="text-[18px] font-semibold tracking-tight text-foreground">
+                  Save your key
+                </h2>
+                <div className="mt-3 flex gap-2.5 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    {freshKeyName ? (
+                      <>
+                        <span className="font-medium text-foreground">{freshKeyName}</span>
+                        {" — "}
+                      </>
+                    ) : null}
+                    Copy this secret now. You will not be able to see it again.
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">Secret key</p>
+                  <div className="flex items-stretch gap-2">
+                    <code className="min-w-0 flex-1 select-all break-all rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-[12px] leading-relaxed text-foreground">
+                      {displayKey}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-auto shrink-0 px-3"
+                      onClick={() => setShowKey((v) => !v)}
+                      aria-label={showKey ? "Hide key" : "Show key"}
+                    >
+                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-3" onClick={() => void handleCopyKey()}>
+                    {copied === "key" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied === "key" ? "Copied" : "Copy key"}
+                  </Button>
+                  <Button type="button" size="sm" className="h-9 px-5" onClick={closeCreateModal}>
+                    Done
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {revokeTarget ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 p-4 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={() => !isRevoking && setRevokeTarget(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revoke-key-title"
+            className="w-full max-w-[400px] rounded-2xl border border-border bg-card p-6 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="revoke-key-title" className="text-[18px] font-semibold tracking-tight text-foreground">
+              Revoke this key?
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">{revokeTarget.name}</span> will stop working immediately.
+              You cannot undo this.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                disabled={isRevoking}
+                onClick={() => setRevokeTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-9 px-4"
+                disabled={isRevoking}
+                onClick={() => void handleRevoke()}
+              >
+                {isRevoking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Revoke key
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -142,7 +142,7 @@ export function IntegrationHealthPanel({
               <Link href="/settings/integrations">{COMMAND_CENTER_UI.manageIntegrations}</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/sandbox">Attack Sandbox</Link>
+              <Link href="/red-team/lab">Attack Lab</Link>
             </Button>
           </div>
         </div>

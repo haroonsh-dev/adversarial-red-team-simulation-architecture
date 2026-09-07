@@ -141,7 +141,7 @@ function OutcomePulse({ events }: { events: LiveMonitorEvent[] }) {
   const passes = recent.filter((e) => e.outcome === "pass").length;
 
   return (
-    <div className="rounded-md border border-[hsl(var(--severity-critical))]/30 bg-[#0c0c0c] p-3">
+    <div className="rounded-md border border-[hsl(var(--severity-critical))]/30 bg-muted p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--severity-critical))]">
           Activity sequence · newest left
@@ -191,7 +191,7 @@ function EvidenceStream({ events }: { events: LiveMonitorEvent[] }) {
   return (
     <div
       ref={scrollerRef}
-      className="relative overflow-y-auto rounded-md border border-[hsl(var(--severity-critical))]/25 bg-[#080808]"
+      className="relative overflow-y-auto rounded-md border border-[hsl(var(--severity-critical))]/25 bg-background"
       style={{ height: VIEWPORT_H }}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       role="log"
@@ -287,7 +287,7 @@ export default function RedTeamLiveIngestMonitorPage() {
     <div className="flex min-h-[calc(100vh-12rem)] flex-col gap-4">
       <div className="flex justify-end">
         <Button size="sm" variant="outline" asChild>
-          <Link href="/red-team/monitor">Open Monitor</Link>
+          <Link href="/red-team/monitor">Open Detections</Link>
         </Button>
       </div>
 

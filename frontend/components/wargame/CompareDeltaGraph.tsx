@@ -29,7 +29,7 @@ export function CompareDeltaGraph({
     return (
       <div
         className={cn(
-          "flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-[#313131] text-[13px] text-[#7c7c7c]",
+          "flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-border text-[13px] text-muted-foreground",
           className
         )}
       >
@@ -39,15 +39,15 @@ export function CompareDeltaGraph({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-[#313131] bg-[#0a0a0a]", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#313131] px-3 py-2">
-        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+    <div className={cn("overflow-hidden rounded-xl border border-border bg-background", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
           Compare graph
         </p>
         <p
           className={cn(
             "font-mono text-[12px] font-semibold tabular-nums",
-            riskDelta < 0 ? "text-[#4ade80]" : riskDelta > 0 ? "text-[#f87171]" : "text-white"
+            riskDelta < 0 ? "text-[#4ade80]" : riskDelta > 0 ? "text-[#f87171]" : "text-foreground"
           )}
         >
           Δ risk {riskDelta > 0 ? "+" : ""}
@@ -63,24 +63,24 @@ export function CompareDeltaGraph({
           return (
             <div key={lens}>
               <div className="mb-1.5 flex items-center justify-between text-[11px]">
-                <span className="font-medium text-white">{lens}</span>
-                <span className="font-mono text-[10px] text-[#7c7c7c]">
+                <span className="font-medium text-foreground">{lens}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">
                   {labelA} {aScore}% · {labelB} {bScore}%
                 </span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-4 shrink-0 font-mono text-[9px] text-[#6798ff]">{labelA}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#141414]">
+                  <span className="w-4 shrink-0 font-mono text-[9px] text-[#67b3ef]">{labelA}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-[#6798ff]"
+                      className="h-full rounded-full bg-[#67b3ef]"
                       style={{ width: `${Math.min(100, aScore)}%` }}
                     />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 shrink-0 font-mono text-[9px] text-[#fbbf24]">{labelB}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#141414]">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-[#fbbf24]"
                       style={{ width: `${Math.min(100, bScore)}%` }}
@@ -92,7 +92,7 @@ export function CompareDeltaGraph({
           );
         })}
       </div>
-      <p className="border-t border-[#313131] px-3 py-2 text-[10px] text-[#454545]">
+      <p className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground">
         Negative overall Δ means {labelB} is safer than {labelA}.
       </p>
     </div>

@@ -22,6 +22,13 @@ for _k in ("ARTSA_API_KEY", "ARTSA_ANALYST_API_KEY", "ARTSA_REDTEAM_API_KEY", "A
     os.environ[_k] = ""
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "integration: tests that need a live Redis (started via Docker when needed)",
+    )
+
+
 def unwrap_response(resp) -> dict[str, Any]:
     """Unwrap the standardised API response envelope.
 

@@ -83,9 +83,8 @@ export default function LibraryPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Library</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Live templates from ARTSA attack library API.
+            Templates from ARTSA that you can run in Attack Lab.
             {data?.total_templates != null ? ` · ${data.total_templates} templates` : ""}
           </p>
         </div>

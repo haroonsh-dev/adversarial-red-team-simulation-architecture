@@ -9,8 +9,8 @@ export default function TopologyPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Attack Topology"
-        description="Live blast-radius map from containment topology and ingest telemetry. Empty until real agent traffic arrives."
+        title="Connections"
+        description="How agents connect, and how risk can spread. Empty until real activity arrives."
         icon={<Network className="h-5 w-5" />}
       />
       <div className="topology-canvas">

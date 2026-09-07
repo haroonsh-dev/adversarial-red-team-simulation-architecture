@@ -18,8 +18,13 @@ _REPO_ROOT = BACKEND_DIR.parent
 load_dotenv(_REPO_ROOT / ".env", override=False)
 load_dotenv(BACKEND_DIR / ".env", override=False)
 
+# Must run before any LangChain ChatModel is constructed (Lab / Campaigns).
+from src.compat.langchain_globals import patch_langchain_globals  # noqa: E402
+
+patch_langchain_globals()
+
 from src.api.middleware.auth import APIKeyAuthMiddleware
-from src.api.middleware.logging import StructlogLoggingMiddleware
+from src.api.middleware.logging import StructlogLoggingMiddleware, quiet_devtools_probes
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.rbac_middleware import RBACMiddleware
 from src.api.middleware.response_envelope import ResponseEnvelopeMiddleware
@@ -52,11 +57,13 @@ from src.api.routes.risks import router as risks_router
 from src.api.routes.sessions import router as sessions_router
 from src.api.routes.settings import router as settings_router
 from src.api.routes.situations import router as situations_router
+from src.api.routes.targets import router as targets_router
 from src.api.routes.topology import router as topology_router
 from src.api.routes.websocket import router as ws_router
 from src.core.config import settings
 
 logging.basicConfig(level=logging.INFO)
+quiet_devtools_probes()
 logger = logging.getLogger("artsa.main")
 
 ROUTERS = [
@@ -90,6 +97,7 @@ ROUTERS = [
     playground_router,
     rag_scanner_router,
     situations_router,
+    targets_router,
 ]
 
 

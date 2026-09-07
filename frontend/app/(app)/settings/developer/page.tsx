@@ -13,8 +13,8 @@ export default function DeveloperApiSetupPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Customer API keys"
-        description="Create a key for a customer. They call ARTSA to protect their agents — you provide the service."
+        title="API Keys"
+        description="Create a key, copy it once, then add it to your app. ARTSA will not show the full secret again."
         icon={<KeyRound className="h-5 w-5" />}
         badge={
           <LiveIndicator

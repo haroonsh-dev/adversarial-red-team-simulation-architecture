@@ -15,7 +15,6 @@ import { KpiTile } from "@/components/red-team/KpiTile";
 import { OutcomeBadge } from "@/components/red-team/OutcomeBadge";
 import { RedTeamHomeCharts } from "@/components/red-team/RedTeamHomeCharts";
 import { RedTeamGlossary } from "@/components/red-team/RedTeamGlossary";
-import { RedTeamServiceReady } from "@/components/red-team/RedTeamServiceReady";
 import { SecurityBoundaryViz } from "@/components/red-team/SecurityBoundaryViz";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,11 +27,11 @@ import { deriveRedTeamOverview } from "@/lib/redTeamOverview";
 import { cn } from "@/lib/utils";
 
 const WORKFLOW = [
-  { href: "/red-team/lab", label: "Attack Lab", desc: "Probe now" },
-  { href: "/red-team/campaigns/new", label: "Campaign", desc: "Launch run" },
-  { href: "/red-team/monitor", label: "Monitor", desc: "Open theaters" },
-  { href: "/red-team/monitor/live", label: "Activity", desc: "Live stream" },
-  { href: "/red-team/findings", label: "Findings", desc: "Triage hits" },
+  { href: "/red-team/lab", label: "Attack Lab", desc: "Check a message" },
+  { href: "/red-team/campaigns", label: "Campaigns", desc: "Start a run" },
+  { href: "/red-team/library", label: "Attack Library", desc: "Pick a template" },
+  { href: "/red-team/monitor", label: "Detections", desc: "Watch live" },
+  { href: "/findings", label: "Findings", desc: "Triage hits" },
 ] as const;
 
 /** Red Team home — real campaign + ingest telemetry, charts, security posture. */
@@ -71,7 +70,6 @@ export default function RedTeamHomePage() {
 
   return (
     <div className="space-y-6">
-      <RedTeamServiceReady />
       <RedTeamGlossary />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

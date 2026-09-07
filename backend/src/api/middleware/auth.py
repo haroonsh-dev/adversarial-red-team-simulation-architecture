@@ -13,6 +13,7 @@ from src.core.auth_credentials import (
 from src.core.config import settings
 
 _PUBLIC_PATHS = {
+    "/",
     "/health",
     "/ready",
     "/api/v1/health",
@@ -35,6 +36,16 @@ _PUBLIC_PATHS = {
 }
 
 
+def is_devtools_probe(path: str) -> bool:
+    """Chrome/Cursor probes localhost ports for ``/json/version`` (CDP)."""
+    return path == "/json" or path.startswith("/json/")
+
+
+def is_public_path(path: str) -> bool:
+    """Paths that skip API-key / OIDC checks."""
+    return path in _PUBLIC_PATHS or is_devtools_probe(path)
+
+
 class APIKeyAuthMiddleware(BaseHTTPMiddleware):
     """Validates X-API-Key or OIDC Bearer token when auth is required."""
 
@@ -45,7 +56,7 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if path in _PUBLIC_PATHS:
+        if is_public_path(path):
             return await call_next(request)
 
         api_key = request.headers.get("X-API-Key")

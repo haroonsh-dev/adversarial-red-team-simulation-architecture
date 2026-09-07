@@ -24,7 +24,7 @@ interface RedTeamEngagementBoardProps {
 }
 
 const PRESSURE_TONE: Record<TargetPosture["pressure"], string> = {
-  unset: "text-[#7c7c7c]",
+  unset: "text-muted-foreground",
   low: "text-[#4ade80]",
   medium: "text-[hsl(var(--severity-high))]",
   high: "text-[hsl(var(--severity-critical))]",
@@ -55,10 +55,10 @@ export function RedTeamEngagementBoard({
   const status = isRunning ? "EXECUTING" : hasTarget ? "ARMED" : "NO_TARGET";
   const statusTone =
     status === "EXECUTING"
-      ? "text-[#6798ff]"
+      ? "text-[#67b3ef]"
       : status === "ARMED"
         ? "text-[#4ade80]"
-        : "text-[#7c7c7c]";
+        : "text-muted-foreground";
 
   const maxWeight = Math.max(1, ...loadout.map((p) => p.weight));
   const queueLen = Math.min(Math.max(rounds, 1), 16);
@@ -66,29 +66,29 @@ export function RedTeamEngagementBoard({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-[#313131] bg-[#0a0a0a]",
+        "overflow-hidden rounded-xl border border-border bg-background",
         className
       )}
     >
       {/* Status strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#313131] px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#6798ff]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#67b3ef]">
             Engagement
           </span>
           <span className={cn("font-mono text-[10px] uppercase tracking-[0.08em]", statusTone)}>
             {status}
           </span>
           {hasTarget ? (
-            <span className="font-mono text-[10px] text-[#a7a7a7]">
+            <span className="font-mono text-[10px] text-muted-foreground">
               {targetName}
               {targetModel ? ` · ${targetModel}` : ""}
             </span>
           ) : (
-            <span className="font-mono text-[10px] text-[#454545]">No target selected</span>
+            <span className="font-mono text-[10px] text-muted-foreground">No target selected</span>
           )}
         </div>
-        <span className="font-mono text-[9px] uppercase text-[#454545]">
+        <span className="font-mono text-[9px] uppercase text-muted-foreground">
           {profileLabel}
           {mutations ? " · mut" : ""} · {rounds}r · ~{estimateMin}m
         </span>
@@ -96,8 +96,8 @@ export function RedTeamEngagementBoard({
 
       <div className="grid gap-0 lg:grid-cols-2">
         {/* Probe loadout */}
-        <div className="border-b border-[#313131] p-3 lg:border-b-0 lg:border-r">
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <div className="border-b border-border p-3 lg:border-b-0 lg:border-r">
+          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
             Probe loadout
           </p>
           <div className="space-y-2">
@@ -107,18 +107,18 @@ export function RedTeamEngagementBoard({
                 <div key={probe.code} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">
-                      <span className="font-mono text-[11px] text-white">{probe.code}</span>
-                      <span className="ml-2 truncate text-[11px] text-[#7c7c7c]">
+                      <span className="font-mono text-[11px] text-foreground">{probe.code}</span>
+                      <span className="ml-2 truncate text-[11px] text-muted-foreground">
                         {probe.label}
                       </span>
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] tabular-nums text-[#a7a7a7]">
+                    <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
                       {probe.weight}%
                     </span>
                   </div>
-                  <div className="h-1 overflow-hidden rounded-full bg-[#1e1e1e]">
+                  <div className="h-1 overflow-hidden rounded-full bg-card">
                     <div
-                      className="h-full rounded-full bg-[#6798ff]/80"
+                      className="h-full rounded-full bg-[#67b3ef]/80"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -129,16 +129,16 @@ export function RedTeamEngagementBoard({
         </div>
 
         {/* Prior posture */}
-        <div className="border-b border-[#313131] p-3 lg:border-b-0">
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <div className="border-b border-border p-3 lg:border-b-0">
+          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
             Prior posture · this target
           </p>
           {!hasTarget ? (
-            <p className="py-6 text-center font-mono text-[11px] text-[#454545]">
+            <p className="py-6 text-center font-mono text-[11px] text-muted-foreground">
               Select a target to load prior scan pressure
             </p>
           ) : posture.scanCount === 0 ? (
-            <p className="py-6 text-center font-mono text-[11px] text-[#454545]">
+            <p className="py-6 text-center font-mono text-[11px] text-muted-foreground">
               Baseline unset — no prior scans for this provider
             </p>
           ) : (
@@ -163,19 +163,19 @@ export function RedTeamEngagementBoard({
 
       {/* ASI scope */}
       {objectives.length > 0 && (
-        <div className="border-t border-[#313131] px-3 py-2.5">
-          <p className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <div className="border-t border-border px-3 py-2.5">
+          <p className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
             Technique scope (ASI)
           </p>
           <div className="flex flex-wrap gap-1">
             {objectives.map((asi) => (
               <span
                 key={asi.code}
-                className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#313131] bg-[#141414] px-2 py-1"
+                className="inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-muted px-2 py-1"
                 title={asi.label}
               >
-                <span className="font-mono text-[10px] text-[#6798ff]">{asi.code}</span>
-                <span className="text-[10px] text-[#7c7c7c]">{asi.short}</span>
+                <span className="font-mono text-[10px] text-[#67b3ef]">{asi.code}</span>
+                <span className="text-[10px] text-muted-foreground">{asi.short}</span>
               </span>
             ))}
           </div>
@@ -183,12 +183,12 @@ export function RedTeamEngagementBoard({
       )}
 
       {/* Round queue — fills as telemetry arrives */}
-      <div className="border-t border-[#313131] px-3 py-2.5">
+      <div className="border-t border-border px-3 py-2.5">
         <div className="mb-1.5 flex items-center justify-between">
-          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
             Round queue
           </p>
-          <p className="font-mono text-[9px] tabular-nums text-[#454545]">
+          <p className="font-mono text-[9px] tabular-nums text-muted-foreground">
             {roundsCompleted}/{rounds} complete
           </p>
         </div>
@@ -204,10 +204,10 @@ export function RedTeamEngagementBoard({
                   filled &&
                     "border-[#4ade80]/40 bg-[#4ade80]/10 text-[#4ade80]",
                   active &&
-                    "border-[#6798ff]/50 bg-[#1a1f2e] text-[#6798ff] animate-pulse",
+                    "border-primary/50 bg-primary/10 text-primary animate-pulse",
                   !filled &&
                     !active &&
-                    "border-[#313131] bg-[#141414] text-[#454545]"
+                    "border-border bg-muted text-muted-foreground"
                 )}
               >
                 R{i + 1}
@@ -215,24 +215,24 @@ export function RedTeamEngagementBoard({
             );
           })}
           {rounds > 16 ? (
-            <span className="font-mono text-[10px] text-[#454545]">+{rounds - 16}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">+{rounds - 16}</span>
           ) : null}
         </div>
       </div>
 
       {focusObjective?.trim() ? (
-        <div className="border-t border-[#313131] px-3 py-2">
-          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <div className="border-t border-border px-3 py-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
             Operator focus
           </p>
-          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#a7a7a7]">
+          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-muted-foreground">
             {focusObjective.trim()}
           </p>
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#313131] px-3 py-2.5">
-        <p className="font-mono text-[10px] text-[#454545]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2.5">
+        <p className="font-mono text-[10px] text-muted-foreground">
           {isRunning
             ? "Awaiting adversarial exchange telemetry…"
             : "Session theater opens when rounds land"}
@@ -258,8 +258,8 @@ function Metric({
 }) {
   return (
     <div>
-      <p className="font-mono text-[9px] uppercase tracking-[0.06em] text-[#454545]">{label}</p>
-      <p className={cn("mt-0.5 font-mono text-[13px] tabular-nums text-white", valueClassName)}>
+      <p className="font-mono text-[9px] uppercase tracking-[0.06em] text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 font-mono text-[13px] tabular-nums text-foreground", valueClassName)}>
         {value}
       </p>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-/** Dovetail grid wireframe — 1px #1e1e1e cells on #0a0a0a canvas. */
+/** Soft sky + pistachio glow on obsidian — no grid wireframe. */
 export function LandingBackdrop() {
   return (
     <div className="lp-backdrop pointer-events-none fixed inset-0 z-0" aria-hidden>

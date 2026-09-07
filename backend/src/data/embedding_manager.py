@@ -19,6 +19,11 @@ from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+class EmbeddingUnavailable(RuntimeError):
+    """Real embedding backend failed. Do not silently substitute hash-1024."""
+
+
 AVAILABLE_EMBEDDING_MODELS = {
     "hash-1024": {
         "dimensions": 1024,
@@ -77,7 +82,7 @@ def _pad_or_truncate(vector: list[float], dimensions: int) -> list[float]:
 
 
 class HighAccuracy1024EmbeddingFunction:
-    """Embedding function with hash fallback and optional OpenAI API."""
+    """Embedding function. hash-1024 is explicit/test-only — never a silent fallback."""
 
     TARGET_DIMENSIONS = 1024
     # Bounded embed cache so repeated arguments (common in agent loops) do not
@@ -106,12 +111,16 @@ class HighAccuracy1024EmbeddingFunction:
             elif self.model_name.startswith("local-"):
                 vector = self._local_embed(text)
             else:
-                return self._hash_embed(text)
+                raise EmbeddingUnavailable(f"Unknown embedding model {self.model_name}")
+        except EmbeddingUnavailable:
+            raise
         except Exception as exc:
-            logger.warning(
-                "Embedding failed for %s (%s), falling back to hash-1024", self.model_name, exc
+            logger.error(
+                "Embedding failed for %s (%s) — refusing hash-1024 fallback",
+                self.model_name,
+                exc,
             )
-            return self._hash_embed(text)
+            raise EmbeddingUnavailable(f"{self.model_name}: {exc}") from exc
         if len(self._cache) >= self._CACHE_MAX:
             self._cache.pop(next(iter(self._cache)))
         self._cache[text] = vector

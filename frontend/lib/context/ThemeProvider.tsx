@@ -56,7 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     // Keep the <meta name="viewport">-independent color-scheme meta in sync.
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#0B0F18" : "#E4DCD0");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#070707" : "#ffffff");
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
@@ -72,4 +72,15 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
   return ctx;
+}
+
+/** Safe theme hook that falls back to 'dark' when outside ThemeProvider (e.g. unit tests). */
+export function useThemeSafe(): { theme: Theme; isDark: boolean; isLight: boolean } {
+  const ctx = useContext(ThemeContext);
+  const theme = ctx?.theme ?? "dark";
+  return {
+    theme,
+    isDark: theme === "dark",
+    isLight: theme === "light",
+  };
 }

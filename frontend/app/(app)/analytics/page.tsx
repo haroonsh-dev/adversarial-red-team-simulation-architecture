@@ -81,7 +81,7 @@ export default function AnalyticsPage() {
     <PageStack>
       <PageHeader
         title="Security analytics"
-        description="Enterprise posture views — risk trajectory, severity mix, containment actions, tool blast ranks, and defense depth from live telemetry only."
+        description="Risk over time, how serious events were, and what ARTSA did — from live activity only."
         icon={<BarChart3 className="h-5 w-5" />}
         badge={<LiveIndicator connected={apiOnline && wsConnected} className="meta-badge" />}
         actions={
@@ -149,15 +149,15 @@ export default function AnalyticsPage() {
           ) : analytics.riskTrend.length > 0 ? (
             <>
               <RiskTrendChart data={analytics.riskTrend} />
-              <div className="flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+              <div className="flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                 <span>
-                  Avg <span className="text-white">{analytics.avgRisk}</span>
+                  Avg <span className="text-foreground">{analytics.avgRisk}</span>
                 </span>
                 <span>
-                  Max <span className="text-white">{analytics.maxRisk}</span>
+                  Max <span className="text-foreground">{analytics.maxRisk}</span>
                 </span>
                 <span>
-                  Points <span className="text-white">{analytics.riskTrend.length}</span>
+                  Points <span className="text-foreground">{analytics.riskTrend.length}</span>
                 </span>
               </div>
             </>
@@ -189,13 +189,13 @@ export default function AnalyticsPage() {
                 {analytics.severitySlices.map((s) => (
                   <div
                     key={s.key}
-                    className="flex items-center justify-between rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-2.5 py-1.5 font-mono text-[11px]"
+                    className="flex items-center justify-between rounded-[6px] border border-border bg-background px-2.5 py-1.5 font-mono text-[11px]"
                   >
-                    <span className="flex items-center gap-1.5 text-[#a7a7a7]">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
                       <span className="h-2 w-2 rounded-full" style={{ background: s.fill }} />
                       {s.label}
                     </span>
-                    <span className="text-white">{s.value}</span>
+                    <span className="text-foreground">{s.value}</span>
                   </div>
                 ))}
               </div>
@@ -310,7 +310,7 @@ export default function AnalyticsPage() {
 
       <DashboardCard title="Defense depth" description="Multi-layer containment effectiveness">
         <div className="mb-4 flex items-center justify-between">
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             Overall defense score
           </span>
           <Badge variant="outline" className="meta-badge font-mono">
@@ -321,14 +321,14 @@ export default function AnalyticsPage() {
           {analytics.defenseLayers.map((layer) => (
             <div key={layer.key} className="space-y-1.5">
               <div className="flex justify-between text-[12px]">
-                <span className="text-[#a7a7a7]">{layer.label}</span>
-                <span className="font-mono text-white">{layer.value}%</span>
+                <span className="text-muted-foreground">{layer.label}</span>
+                <span className="font-mono text-foreground">{layer.value}%</span>
               </div>
               <Progress value={layer.value} className="h-1.5" aria-label={`${layer.label} at ${layer.value}%`} />
             </div>
           ))}
           {analytics.defenseLayers.length === 0 && (
-            <p className="text-[13px] text-[#7c7c7c]">
+            <p className="text-[13px] text-muted-foreground">
               Send agent activity to see layer-by-layer scores.
             </p>
           )}

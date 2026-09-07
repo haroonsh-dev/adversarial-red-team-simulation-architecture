@@ -19,7 +19,7 @@ const OUTCOMES = [
   },
   {
     quote:
-      "Sub-50ms containment SLO means we quarantine risky tool calls in the same session — not in the weekly scan report.",
+      "The adaptive-vs-static detection curve is the argument we can actually show — not a promised in-session KILL we have not built.",
     role: "SOC operations",
   },
 ] as const;

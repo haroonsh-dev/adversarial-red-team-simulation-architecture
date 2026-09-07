@@ -67,7 +67,7 @@ export function LandingPricing() {
               variants={fadeUp}
               transition={{ ease: easeOut }}
               className={`lp-card flex flex-col p-6 ${
-                plan.highlight ? "border-[var(--color-blue-cornflower)]" : ""
+                plan.highlight ? "border-[var(--color-pistachio)]" : ""
               }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -86,7 +86,7 @@ export function LandingPricing() {
                 {plan.features.map((f) => (
                   <li key={f} className="flex gap-2 text-[14px] text-[var(--color-ash)]">
                     <Check
-                      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-blue-cornflower)]"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-pistachio)]"
                       aria-hidden
                     />
                     {f}
@@ -106,7 +106,7 @@ export function LandingPricing() {
                   <LandingSignInButton
                     variant="ghost"
                     className="lp-btn-primary w-full"
-                    signInOptions={{ returnTo: "/dashboard", mode: "register" }}
+                    signInOptions={{ returnTo: "/command-center", mode: "register" }}
                   >
                     {plan.cta}
                   </LandingSignInButton>

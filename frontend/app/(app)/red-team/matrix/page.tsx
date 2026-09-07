@@ -163,7 +163,7 @@ export default function ResultMatrixPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-xl text-[13px] text-muted-foreground">
-          Each row is a judged attack — open evidence for prompt, response, detectors, and action.
+          Each row is a judged attack — open a session for the prompt, response, and what ARTSA did.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={rows.length === 0} onClick={exportCsv}>

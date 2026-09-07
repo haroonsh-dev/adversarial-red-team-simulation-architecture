@@ -11,7 +11,7 @@ export default function RagAstraGuidePage() {
     <div className="space-y-6 max-w-3xl">
       <PageHeader
         title="RAG + Astra integration"
-        description="Wire your vector RAG app to ARTSA ingest — not Astra webhooks alone."
+        description="Connect your document-search app to ARTSA so we can check retrieved content — not just alerts on the side."
         icon={<Database className="h-5 w-5" />}
       />
       <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
@@ -43,7 +43,7 @@ export default function RagAstraGuidePage() {
           <Link href="/rag-scanner">RAG Scanner</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/dashboard">
+          <Link href="/command-center">
             <ScrollText className="h-4 w-4" />
             Command Center
           </Link>

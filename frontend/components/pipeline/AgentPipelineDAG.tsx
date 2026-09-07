@@ -29,7 +29,7 @@ const NODE_X: Record<PipelineAgentId, number> = {
 
 const STATUS_STROKE: Record<AgentOperationalStatus, string> = {
   online: "#4ade80",
-  active: "#6798ff",
+  active: "#67b3ef",
   degraded: "hsl(var(--severity-high))",
   offline: "#454545",
 };
@@ -103,7 +103,7 @@ export function AgentPipelineDAG({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[8px] border border-[#313131] bg-[#0a0a0a]",
+        "relative overflow-hidden rounded-[8px] border border-border bg-background",
         className
       )}
     >
@@ -111,7 +111,7 @@ export function AgentPipelineDAG({
         className="pointer-events-none absolute inset-0 opacity-30"
         style={{
           backgroundImage:
-            "linear-gradient(#1e1e1e 1px, transparent 1px), linear-gradient(90deg, #1e1e1e 1px, transparent 1px)",
+            "linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)",
           backgroundSize: "28px 28px",
           maskImage: "radial-gradient(ellipse 75% 65% at 50% 45%, black, transparent)",
         }}
@@ -119,16 +119,16 @@ export function AgentPipelineDAG({
       />
 
       {/* HUD */}
-      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-[#313131]/80 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
-          <span className="text-[#6798ff]">Agent chain</span>
-          <span className="text-[#454545]">|</span>
+      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-border/80 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="text-[#67b3ef]">Agent chain</span>
+          <span className="text-muted-foreground">|</span>
           <span>
-            hops <span className="text-white">6</span>
+            hops <span className="text-foreground">6</span>
           </span>
           <span>
             active{" "}
-            <span className="text-white">
+            <span className="text-foreground">
               {snapshot.activeAgentId
                 ? hopFromAgent(snapshot.activeAgentId).edgeTag
                 : "—"}
@@ -136,12 +136,12 @@ export function AgentPipelineDAG({
           </span>
           <span>
             loop{" "}
-            <span className={snapshot.loopClosed ? "text-[#4ade80]" : "text-[#454545]"}>
+            <span className={snapshot.loopClosed ? "text-[#4ade80]" : "text-muted-foreground"}>
               {snapshot.loopClosed ? "closed" : "open"}
             </span>
           </span>
         </div>
-        <p className="font-mono text-[9px] text-[#454545]">RESEARCH → DEFENDER ↺</p>
+        <p className="font-mono text-[9px] text-muted-foreground">RESEARCH → DEFENDER ↺</p>
       </div>
 
       <svg
@@ -172,7 +172,7 @@ export function AgentPipelineDAG({
             markerHeight="5"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#6798ff" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#67b3ef" />
           </marker>
         </defs>
 
@@ -182,7 +182,7 @@ export function AgentPipelineDAG({
           y1={NODE_Y + NODE_H / 2}
           x2={VIEW_W - 20}
           y2={NODE_Y + NODE_H / 2}
-          stroke="#1e1e1e"
+          stroke="hsl(var(--muted))"
           strokeWidth={24}
           strokeLinecap="round"
         />
@@ -203,7 +203,7 @@ export function AgentPipelineDAG({
               <path
                 d={d}
                 fill="none"
-                stroke={hot ? "#6798ff" : "#313131"}
+                stroke={hot ? "#67b3ef" : "#313131"}
                 strokeWidth={hot ? 2.25 : 1.5}
                 strokeDasharray={isLoop ? "6 4" : undefined}
                 markerEnd={hot ? "url(#chain-arrow-hot)" : "url(#chain-arrow)"}
@@ -212,7 +212,7 @@ export function AgentPipelineDAG({
                 x={midX}
                 y={midY}
                 textAnchor="middle"
-                fill={hot ? "#6798ff" : "#7c7c7c"}
+                fill={hot ? "#67b3ef" : "#7c7c7c"}
                 fontSize={9}
                 className="font-mono uppercase"
               >
@@ -223,7 +223,7 @@ export function AgentPipelineDAG({
         })}
 
         {livePacket ? (
-          <circle r={4.5} fill="#6798ff">
+          <circle r={4.5} fill="#67b3ef">
             <animateMotion dur="2.4s" repeatCount="indefinite" path={packetPath} key={packetStep} />
           </circle>
         ) : null}
@@ -234,7 +234,7 @@ export function AgentPipelineDAG({
           const selected = selectedId === agent.id;
           const active = snapshot.activeAgentId === agent.id;
           const status = agentStatusById[agent.id] ?? "offline";
-          const stroke = selected ? "#ffffff" : active ? "#6798ff" : STATUS_STROKE[status];
+          const stroke = selected ? "#ffffff" : active ? "#67b3ef" : STATUS_STROKE[status];
 
           return (
             <g
@@ -263,7 +263,7 @@ export function AgentPipelineDAG({
                   height={NODE_H + 12}
                   rx={10}
                   fill="none"
-                  stroke="#6798ff"
+                  stroke="#67b3ef"
                   strokeOpacity={0.35}
                   strokeWidth={1}
                 >
@@ -280,7 +280,7 @@ export function AgentPipelineDAG({
                 width={NODE_W}
                 height={NODE_H}
                 rx={8}
-                fill="#141414"
+                fill="hsl(var(--muted))"
                 stroke={stroke}
                 strokeWidth={selected || active ? 2 : 1.25}
               />
@@ -320,19 +320,19 @@ export function AgentPipelineDAG({
         })}
       </svg>
 
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-t border-[#313131]/80 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-t border-border/80 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" /> Online
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#6798ff]" /> Active hop
+            <span className="h-1.5 w-1.5 rounded-full bg-[#67b3ef]" /> Active hop
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--severity-high))]" /> Degraded
           </span>
         </span>
-        <span className="text-[#454545]">
+        <span className="text-muted-foreground">
           {livePacket
             ? `Packet on ${packetHop.edgeTag} · ${packetHop.label}`
             : "Awaiting campaign or ingest to animate chain"}

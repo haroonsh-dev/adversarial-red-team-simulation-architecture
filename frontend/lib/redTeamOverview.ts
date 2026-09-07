@@ -212,4 +212,4 @@ function truncateLabel(s: string, n: number): string {
 }
 
 /** Soft blue for running campaigns — matches chart primary without importing chartTheme cycle. */
-const CHART_PRIMARY_SOFT = "#6798ff";
+const CHART_PRIMARY_SOFT = "#67b3ef";

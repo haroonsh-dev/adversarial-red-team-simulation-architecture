@@ -17,6 +17,7 @@ function capabilitiesForRole(role: string): AuthCapabilities {
       can_manage_policies: true,
       can_manage_providers: true,
       can_manage_integrations: true,
+      can_manage_targets: true,
       read_only: false,
     };
   }
@@ -28,6 +29,8 @@ function capabilitiesForRole(role: string): AuthCapabilities {
     can_manage_policies: false,
     can_manage_providers: false,
     can_manage_integrations: false,
+    // Registering and probing a target is a red-team operation.
+    can_manage_targets: role === "redteam",
     read_only: role === "readonly",
   };
 }
@@ -40,6 +43,7 @@ export interface AuthCapabilities {
   can_manage_policies: boolean;
   can_manage_providers: boolean;
   can_manage_integrations: boolean;
+  can_manage_targets: boolean;
   read_only: boolean;
 }
 
@@ -69,6 +73,7 @@ const NO_CAPABILITIES: AuthCapabilities = {
   can_manage_policies: false,
   can_manage_providers: false,
   can_manage_integrations: false,
+  can_manage_targets: false,
   read_only: false,
 };
 

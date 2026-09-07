@@ -9,10 +9,7 @@ import {
 import { NavItemsList } from "@/components/layout/NavItemsList";
 import { useAuthRole } from "@/lib/hooks/useAuthRole";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Rocket } from "lucide-react";
 
 export default function Sidebar() {
   const { identity, capabilities } = useAuthRole();
@@ -28,45 +25,29 @@ export default function Sidebar() {
   return (
     <aside className="shell-sidebar sticky top-0 z-40 hidden h-screen w-64 flex-col lg:flex">
       <Link
-        href="/dashboard"
-        className="flex items-center gap-3 border-b border-border p-5 transition-colors hover:bg-muted/25"
+        href="/command-center"
+        className="flex items-center gap-3 border-b border-border px-5 py-4 transition-colors hover:bg-muted/25"
       >
         <LogoIcon size={22} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <LogoWordmark size={22} />
-            <Badge variant="secondary" className="meta-badge shrink-0 font-mono">
-              v0.3
-            </Badge>
-          </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">AI Containment</p>
-        </div>
+        <LogoWordmark size={22} />
       </Link>
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1" aria-label="Main navigation">
           {visibleSections.map((section, sectionIndex) => (
             <div
-              key={section.label}
-              className={cn(sectionIndex > 0 && "nav-section-block", sectionIndex === 0 && "pb-1")}
+              key={section.label || "primary"}
+              className={cn(
+                sectionIndex > 0 && "nav-section-block",
+                sectionIndex === 0 && "pb-1"
+              )}
             >
-              <p className="nav-section-label">{section.label}</p>
+              {section.label ? <p className="nav-section-label">{section.label}</p> : null}
               <NavItemsList items={section.items} variant="desktop" />
             </div>
           ))}
         </nav>
       </ScrollArea>
-
-      <Separator />
-      <div className="p-4">
-        <Link
-          href="/get-started"
-          className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5 text-xs font-medium transition-colors hover:border-foreground/15 hover:bg-muted/40"
-        >
-          <Rocket className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          Setup checklist
-        </Link>
-      </div>
     </aside>
   );
 }

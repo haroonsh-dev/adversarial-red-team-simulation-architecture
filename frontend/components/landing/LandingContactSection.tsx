@@ -50,7 +50,7 @@ export function LandingContactSection() {
                 return (
                   <li key={p.title} className="flex gap-4">
                     <Icon
-                      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-blue-cornflower)]"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-pistachio)]"
                       strokeWidth={1.75}
                       aria-hidden
                     />
@@ -67,8 +67,8 @@ export function LandingContactSection() {
           </motion.div>
 
           <motion.div
-            className="rounded-[8px] border border-[#313131] p-6 sm:p-8"
-            style={{ backgroundColor: "#1e1e1e" }}
+            className="rounded-2xl border border-white/10 p-6 sm:p-8"
+            style={{ backgroundColor: "#131313" }}
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -76,7 +76,7 @@ export function LandingContactSection() {
           >
             <ContactSalesForm
               idPrefix="section-contact"
-              onLoginHref={authLoginHref({ returnTo: "/dashboard" })}
+              onLoginHref={authLoginHref({ returnTo: "/command-center" })}
             />
           </motion.div>
         </div>

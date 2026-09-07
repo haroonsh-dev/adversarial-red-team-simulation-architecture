@@ -110,8 +110,8 @@ export default function TeamPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Team"
-        description="Manage team members, roles, and access control for your organization."
+        title="Team & Access"
+        description="People, roles, and who can do what."
         icon={<Users className="h-5 w-5" />}
         actions={
           <div className="flex gap-2">

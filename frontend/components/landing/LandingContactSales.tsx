@@ -112,7 +112,7 @@ export function ContactSalesForm({
   if (done) {
     return (
       <div className="flex flex-col items-center py-8 text-center">
-        <CheckCircle2 className="h-10 w-10 text-[#6798ff]" aria-hidden />
+        <CheckCircle2 className="h-10 w-10 text-[#67b3ef]" aria-hidden />
         <h3 className="mt-4 text-[24px] font-semibold leading-[1.33] tracking-[-0.5px] text-white">
           Thanks — we got your request
         </h3>
@@ -278,14 +278,14 @@ export function ContactSalesForm({
           {onLoginHref ? (
             <a
               href={onLoginHref}
-              className="font-medium text-white underline-offset-4 hover:text-[#6798ff] hover:underline"
+              className="font-medium text-white underline-offset-4 hover:text-[#67b3ef] hover:underline"
             >
               Sign in
             </a>
           ) : (
             <button
               type="button"
-              className="font-medium text-white underline-offset-4 hover:text-[#6798ff] hover:underline"
+              className="font-medium text-white underline-offset-4 hover:text-[#67b3ef] hover:underline"
               onClick={onLogin}
             >
               Sign in
@@ -336,7 +336,7 @@ export function LandingContactSalesPanel({
         >
           <button
             type="button"
-            className="absolute inset-0 bg-[#0a0a0a]/95"
+            className="absolute inset-0 bg-[#070707]/95"
             aria-label="Close contact sales"
             onClick={onClose}
           />
@@ -345,7 +345,7 @@ export function LandingContactSalesPanel({
             aria-modal="true"
             aria-labelledby="contact-sales-title"
             className="lp-modal-panel"
-            style={{ backgroundColor: "#1e1e1e" }}
+            style={{ backgroundColor: "#131313" }}
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}

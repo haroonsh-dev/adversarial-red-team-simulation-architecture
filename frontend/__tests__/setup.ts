@@ -36,3 +36,11 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
   configurable: true,
 });
+
+if (typeof window !== "undefined" && !window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

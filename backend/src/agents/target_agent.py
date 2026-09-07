@@ -75,6 +75,12 @@ class TargetAgent(BaseAgent):
 
         return not blocked, results
 
+    def receive_signed(self, envelope):
+        """HMAC-verify a Red Team envelope before any target processing."""
+        from src.agents.handoff_worker import accept_envelope
+
+        return accept_envelope("target", envelope)
+
     def process(self, attack_prompt: str) -> TargetResponse:
         """Process an attack through the entire defense pipeline."""
         start_time = time.time()

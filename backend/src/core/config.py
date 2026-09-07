@@ -116,6 +116,16 @@ class Settings(BaseSettings):
     # signs the ticket; falls back to SECRET_KEY when unset.
     ARTSA_WS_TICKET_SECRET: str | None = None
     ARTSA_WS_TICKET_TTL_SEC: int = 30
+    # Inter-agent HMAC handoffs (Red Team → Target → Judge). Distinct from WS tickets.
+    ARTSA_HMAC_HANDOFF_SECRET: str | None = None
+    ARTSA_HMAC_HANDOFF_TTL_SEC: int = 300
+    ARTSA_HMAC_HANDOFF_MAX_SKEW_SEC: int = 60
+    # When true, CampaignManager queues Target/Judge hops to independent
+    # worker processes over Redis (BRPOP). Workers verify, process/score, and
+    # (for Target) sign the next envelope. Default is in-process hops that still
+    # verify-then-process on the receiver role — orchestrator never signs as Target.
+    ARTSA_HMAC_RECEIVER_WORKERS: bool = False
+    ARTSA_HMAC_WORKER_TIMEOUT_SEC: int = 15
     # Wrap all JSON responses in {"success","data","meta"}. DEFAULT OFF: the
     # frontend, SDKs and tests still consume the flat contract. Flip to true
     # only after api.ts / SDKs / tests are migrated (see docs/AGENT_CONTRACT.md).
@@ -268,6 +278,9 @@ class Settings(BaseSettings):
 
         if fastembed_available():
             # Open-source BAAI/bge-small-en-v1.5 — offline, no API key.
+            return "local-bge-small"
+        if self.ENVIRONMENT == "production":
+            # Do not silently weaken to hash-1024; embed() will fail closed.
             return "local-bge-small"
         return "hash-1024"
 

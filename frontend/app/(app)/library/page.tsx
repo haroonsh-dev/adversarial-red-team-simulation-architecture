@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function LibraryRedirect() {
-  redirect("/red-team/lab");
+  redirect("/red-team/library");
 }

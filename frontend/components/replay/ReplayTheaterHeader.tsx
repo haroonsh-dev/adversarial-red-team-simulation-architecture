@@ -77,7 +77,7 @@ export function ReplayTheaterHeader({
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-              Session autopsy
+              Sessions
             </Badge>
             {selectedSession && (
               <span
@@ -95,7 +95,7 @@ export function ReplayTheaterHeader({
               {selectedSession?.agent_id ?? "Pick a session"}
             </h1>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Scrub through each tool call like a film — see when risk spiked and what the guard did.
+              Scrub through each action — see when risk spiked and what ARTSA did.
             </p>
           </div>
           {sessions.length > 0 && (

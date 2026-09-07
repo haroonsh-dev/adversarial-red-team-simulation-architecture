@@ -74,6 +74,17 @@ def _is_monitor_only(event: ToolCallEvent) -> bool:
     return event.tool_name in _MONITOR_ONLY_TOOLS
 
 
+def _scan_phase(event: ToolCallEvent) -> str:
+    """Pre-exec = arguments only (tool has not returned). Post-exec = output scan."""
+    return "post_exec" if event.response else "pre_exec"
+
+
+def _execution_allowed(action: str, *, monitor_only: bool) -> bool:
+    if monitor_only:
+        return True
+    return action not in _ENFORCE_ACTIONS
+
+
 def _publish_telemetry(
     *,
     event: ToolCallEvent,
@@ -82,11 +93,14 @@ def _publish_telemetry(
     sec_events: list[Any],
     enforced: bool,
     session_status: str | None,
+    tenant_id: str | None = None,
 ) -> None:
     severity = severity_from_score(risk_score.overall_score)
     telemetry_bus.publish(
         {
             "type": "tool_call",
+            "event_id": str(event.id),
+            "trace_id": event.trace_id,
             "session_id": str(event.session_id),
             "agent_id": event.agent_id,
             "tool_name": event.tool_name,
@@ -104,6 +118,10 @@ def _publish_telemetry(
             ],
             "enforced": enforced,
             "session_status": session_status,
+            "tenant_id": tenant_id,
+            "hmac_state": "unwired",
+            "hmac_verified": None,
+            "latency_ms": event.latency_ms,
         }
     )
 
@@ -161,9 +179,11 @@ async def run_ingest_pipeline(
 
         tracker.add_event_to_session(event.session_id, event)
         # Fast path for Harness prompt/output; full detector pack for tools.
+        # No response → pre-execution argument gate (ToolOutputScanner does not run).
         risk_score, verdict, sec_events = processor.process(
             event, fast=_is_monitor_only(event)
         )
+        scan_phase = _scan_phase(event)
 
         mark_breached = verdict.verdict == "BREACHED" and not _is_monitor_only(event)
         tracker.update_session(
@@ -179,10 +199,12 @@ async def run_ingest_pipeline(
 
         enforced = False
         action = verdict.recommended_action
+        monitor_only = _is_monitor_only(event)
+        execution_allowed = _execution_allowed(action, monitor_only=monitor_only)
         if (
             settings.ARTSA_AUTO_ENFORCE
             and action in _ENFORCE_ACTIONS
-            and not _is_monitor_only(event)
+            and not monitor_only
         ):
             tracker.apply_action(event.session_id, action)
             enforced = True
@@ -199,6 +221,7 @@ async def run_ingest_pipeline(
             sec_events=sec_events,
             enforced=enforced,
             session_status=session_status,
+            tenant_id=tenant_id,
         )
 
         evaluation = {
@@ -225,6 +248,9 @@ async def run_ingest_pipeline(
             "bypass_depth": risk_score.bypass_depth,
             "security_event_count": len(sec_events),
             "enforced": enforced,
+            "scan_phase": scan_phase,
+            "execution_allowed": execution_allowed,
+            "pre_exec_blocked": scan_phase == "pre_exec" and not execution_allowed,
         }
         evaluations.append(evaluation)
 
@@ -305,4 +331,7 @@ async def run_ingest_pipeline(
         "auto_enforced_action": auto_enforced,
         "security_events_count": first_eval.get("security_event_count", 0),
         "latency_ms": round(elapsed_ms, 2),
+        "scan_phase": first_eval.get("scan_phase", "pre_exec"),
+        "execution_allowed": first_eval.get("execution_allowed", True),
+        "pre_exec_blocked": first_eval.get("pre_exec_blocked", False),
     }

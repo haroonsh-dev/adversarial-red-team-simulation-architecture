@@ -18,10 +18,10 @@ interface ComparisonRow {
 const ROWS: ComparisonRow[] = [
   {
     feature: "Sub-50ms runtime containment",
-    artsa: "full",
+    artsa: "partial",
     peer: "partial",
     hiddenlayer: "partial",
-    note: "Inline KILL / QUARANTINE at ingest",
+    note: "Designed action enum; in-session blocking not built",
   },
   {
     feature: "Red-team campaign console",
@@ -72,7 +72,7 @@ const VENDORS = ["ARTSA", "Peer Guard", "HiddenLayer"] as const;
 function CellIcon({ value }: { value: CellValue }) {
   if (value === "full") {
     return (
-      <span className="inline-flex items-center justify-center gap-1 text-[var(--color-blue-cornflower)]">
+      <span className="inline-flex items-center justify-center gap-1 text-[var(--color-pistachio)]">
         <Check className="h-3.5 w-3.5" aria-hidden />
         <span className="hidden text-[12px] sm:inline">Full</span>
       </span>
@@ -134,7 +134,7 @@ export function LandingComparison() {
                       className={cn(
                         "px-3 py-3.5 text-center font-medium sm:px-4",
                         v === "ARTSA"
-                          ? "text-[var(--color-blue-cornflower)]"
+                          ? "text-[var(--color-pistachio)]"
                           : "text-[var(--color-snow)]"
                       )}
                     >

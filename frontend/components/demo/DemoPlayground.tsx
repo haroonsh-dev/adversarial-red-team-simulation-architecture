@@ -85,7 +85,7 @@ export function DemoPlayground() {
               );
             })}
           </TabsList>
-          <LandingSignInButton size="sm" className="shrink-0 rounded-full" signInOptions={{ returnTo: "/dashboard" }}>
+          <LandingSignInButton size="sm" className="shrink-0 rounded-full" signInOptions={{ returnTo: "/command-center" }}>
             Upgrade to full workspace
           </LandingSignInButton>
         </div>
@@ -189,7 +189,7 @@ function GuardPlayground() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-[#0B101E]/80 p-4 sm:p-5">
+      <div className="rounded-2xl border border-border/50 bg-card/80 p-4 sm:p-5">
         <p className="text-sm font-medium">Scan results</p>
         <AnimatePresence mode="wait">
           {result ? (
@@ -355,7 +355,7 @@ function FindingsDemo() {
           </button>
         ))}
       </div>
-      <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-[#0B101E]/80 p-5">
+      <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card/80 p-5">
         <p className="font-mono text-xs text-muted-foreground">Chain of custody</p>
         <h3 className="mt-2 text-lg font-medium">{active.title}</h3>
         <dl className="mt-4 space-y-2 text-sm">
@@ -419,7 +419,7 @@ function ReplayDemo() {
         aria-label="Replay timeline position"
       />
 
-      <div className="mt-4 rounded-xl border border-border/40 bg-[#0B101E]/60 p-4">
+      <div className="mt-4 rounded-xl border border-border/40 bg-muted/60 p-4">
         <p className="font-mono text-xs text-muted-foreground">
           Frame {frame + 1} · {DEMO_REPLAY_LAYERS[frame].label}
         </p>
@@ -451,7 +451,7 @@ function ScreenPreviewDemo({
       </div>
       <LandingProductScreenshot screen={screen} className="h-auto min-h-[14rem] rounded-none border-0" />
       <div className="border-t border-border/40 p-4 text-center">
-        <LandingSignInButton className="rounded-full" signInOptions={{ returnTo: "/dashboard" }}>
+        <LandingSignInButton className="rounded-full" signInOptions={{ returnTo: "/command-center" }}>
           Open full {title.toLowerCase()}
         </LandingSignInButton>
       </div>

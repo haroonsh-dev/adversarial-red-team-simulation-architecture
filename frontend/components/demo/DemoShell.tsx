@@ -7,7 +7,7 @@ import { LandingSignInButton } from "@/components/landing/LandingSignInButton";
 
 export function DemoShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="lp lp--dovetail relative min-h-screen">
+    <div className="lp lp--obsidian relative min-h-screen">
       <LandingBackdrop />
       <header className="lp-nav relative z-50 border-b border-[var(--color-steel-border)]">
         <div className="lp-shell flex h-16 items-center justify-between gap-3">
@@ -21,7 +21,7 @@ export function DemoShell({ children }: { children: React.ReactNode }) {
             <LandingSignInButton
               variant="ghost"
               className="lp-btn-primary"
-              signInOptions={{ returnTo: "/dashboard" }}
+              signInOptions={{ returnTo: "/command-center" }}
             >
               Contact sales
             </LandingSignInButton>

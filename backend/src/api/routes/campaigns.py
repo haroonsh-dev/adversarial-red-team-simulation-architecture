@@ -19,11 +19,13 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_tenant
 from src.api.ws_auth import require_ws_auth
 from src.core.config import settings
 from src.data.campaign_job_store import campaign_job_store
+from src.data.db import get_async_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Campaigns"])
@@ -38,6 +40,11 @@ class RunCampaignRequest(BaseModel):
     attack_profile: str = "quick_scan"
     max_rounds: int = Field(default=10, ge=1, le=100)
     base_url: str | None = None
+    # When set, the registered target is authoritative for provider/model/
+    # base_url/system_prompt, and must be authorized before the run starts.
+    target_id: str | None = None
+    target_version: str | None = None
+    system_prompt: str | None = None
     use_llm_judge: bool | None = None  # None = respect configs/default_config.yaml
     # Explicit AttackCategory codes (DPI, JBK, …) or UI labels ("Prompt Injection").
     categories: list[str] | None = None
@@ -62,6 +69,7 @@ class BaselineCampaignRequest(BaseModel):
     max_mutations_per_attack: int | None = Field(default=None, ge=0, le=8)
     target_agent: str | None = None
     target_tools: str | None = None
+    target_id: str | None = None
 
 
 class BaselineScheduleRequest(BaseModel):
@@ -196,6 +204,9 @@ def _launch_baseline(
     max_mutations_per_attack: int | None = None,
     target_agent: str | None = None,
     target_tools: str | None = None,
+    target_id: str | None = None,
+    system_prompt: str | None = None,
+    base_url: str | None = None,
 ) -> dict[str, Any]:
     profile = "custom" if categories else "quick_scan"
     req = RunCampaignRequest(
@@ -211,6 +222,9 @@ def _launch_baseline(
         max_mutations_per_attack=max_mutations_per_attack,
         target_agent=target_agent,
         target_tools=target_tools,
+        target_id=target_id,
+        system_prompt=system_prompt,
+        base_url=base_url,
     )
     campaign_id = str(uuid.uuid4())
     campaign_job_store.create(
@@ -284,6 +298,7 @@ def execute_campaign_background(campaign_id: str, req: RunCampaignRequest) -> No
                 logger.exception("Live monitor emit failed for %s", campaign_id)
 
     try:
+        from src.core.campaign_exec import secret_ref_for_provider
         from src.models import AttackProfile, CampaignConfig, TargetConfig
         from src.orchestrator.campaign_manager import CampaignManager
         from src.services.campaign_live_bus import default_agents, emit_campaign_status
@@ -299,18 +314,22 @@ def execute_campaign_background(campaign_id: str, req: RunCampaignRequest) -> No
             app_config = yaml.safe_load(f)
 
         api_key = _resolve_provider_api_key(req.provider)
-        if not api_key and req.provider not in ("ollama", "local"):
+        if not api_key and req.provider not in ("ollama", "local", "deterministic", "fake", "test"):
             raise ValueError(
                 f"No API key configured for provider '{req.provider}'. "
                 "Add the key in .env or use Providers page."
             )
 
+        worker_mode = settings.ARTSA_HMAC_RECEIVER_WORKERS
         target_cfg = TargetConfig(
-            name=f"Target-{req.provider}",
             provider=req.provider,
             model=req.model,
-            api_key=api_key,
+            api_key=None if worker_mode else api_key,
             base_url=req.base_url,
+            system_prompt=req.system_prompt or "",
+            target_id=req.target_id,
+            target_version=req.target_version,
+            secret_ref=secret_ref_for_provider(req.provider),
         )
         categories = _resolve_attack_categories(req.attack_profile, req.categories)
         mut_on, mut_cap = _mutation_settings(
@@ -397,12 +416,59 @@ async def list_campaigns(tenant_id: str = Depends(get_current_tenant)) -> dict[s
     return {"campaigns": campaigns}
 
 
+async def _apply_registered_target(
+    req: RunCampaignRequest,
+    session: AsyncSession,
+    tenant_id: str,
+) -> None:
+    """Fold a registered target's configuration into the run request.
+
+    The target is authoritative for what is being tested, and must be
+    authorized first — the same gate discovery enforces. When the target has a
+    discovered surface and the request did not pin categories, the campaign
+    runs the categories that surface opened.
+    """
+    from src.core.attack_taxonomy import attack_categories_for
+    from src.data import target_store
+
+    target = await target_store.get_target(session, req.target_id or "", tenant_id=tenant_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Target not found")
+    if not target.authorized:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Target '{target.name}' is not authorized for testing. "
+                "Mark it authorized before running a campaign against it."
+            ),
+        )
+
+    if target.provider:
+        req.provider = target.provider
+    if target.model:
+        req.model = target.model
+    if target.base_url:
+        req.base_url = target.base_url
+    if target.system_prompt:
+        req.system_prompt = target.system_prompt
+    req.target_version = target.version
+
+    if not req.categories and target.surface and target.surface.reachable:
+        derived = attack_categories_for([i.taxonomy_id for i in target.surface.surface])
+        if derived:
+            req.categories = derived
+
+
 @router.post("/campaigns/run")
 async def start_campaign(
     req: RunCampaignRequest,
     background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_async_session),
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
+    if req.target_id:
+        await _apply_registered_target(req, session, tenant_id)
+
     campaign_id = str(uuid.uuid4())
     campaign_job_store.create(
         campaign_id,
@@ -425,17 +491,42 @@ async def start_campaign(
 @router.post("/campaigns/baseline")
 async def start_baseline_campaign(
     background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_async_session),
     tenant_id: str = Depends(get_current_tenant),
     payload: BaselineCampaignRequest | None = None,
 ) -> dict[str, Any]:
     """Phase 3: auto quick-scan baseline for onboarding / first connect.
 
     Uses an explicit provider/model when given; otherwise the first configured target.
+    A registered ``target_id`` is authoritative for provider/model and must be authorized.
     """
     from src.services.endpoint_quota import enforce_baseline_start_quota
 
     enforce_baseline_start_quota(tenant_id)
     body = payload or BaselineCampaignRequest()
+
+    system_prompt: str | None = None
+    base_url: str | None = None
+    if body.target_id:
+        # Reuse the same authorization + config fold as /campaigns/run.
+        tmp = RunCampaignRequest(
+            name=body.name,
+            provider=body.provider or "",
+            model=body.model or "",
+            max_rounds=body.max_rounds,
+            categories=body.categories,
+            intensity=body.intensity,
+            mutations_enabled=body.mutations_enabled,
+            max_mutations_per_attack=body.max_mutations_per_attack,
+            target_id=body.target_id,
+        )
+        await _apply_registered_target(tmp, session, tenant_id)
+        body.provider = tmp.provider
+        body.model = tmp.model
+        body.categories = tmp.categories
+        system_prompt = tmp.system_prompt
+        base_url = tmp.base_url
+
     provider, model = _resolve_baseline_target(body.provider, body.model)
     return _launch_baseline(
         background_tasks=background_tasks,
@@ -451,6 +542,9 @@ async def start_baseline_campaign(
         max_mutations_per_attack=body.max_mutations_per_attack,
         target_agent=body.target_agent,
         target_tools=body.target_tools,
+        target_id=body.target_id,
+        system_prompt=system_prompt,
+        base_url=base_url,
     )
 
 

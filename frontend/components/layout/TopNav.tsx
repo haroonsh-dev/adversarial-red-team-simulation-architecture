@@ -13,11 +13,13 @@ import { useConnection } from "@/lib/context/ConnectionProvider";
 import { formatTopNavConnectionLabel } from "@/lib/connectionStatus";
 import { fetchFromBackend } from "@/lib/api";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthRole } from "@/lib/hooks/useAuthRole";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useTenantStore } from "@/lib/stores/tenant";
 import { useTheme } from "@/lib/context/ThemeProvider";
+import { useDashboardMetrics } from "@/lib/context/DashboardMetricsProvider";
+import { severityBuckets } from "@/lib/redTeamLiveIngest";
 import { isOidcEnabled } from "@/lib/oidc";
 import { avatarIsEmoji, resolveAvatarSrc } from "@/lib/profile";
 import { landingSignInHref } from "@/lib/authSession";
@@ -32,8 +34,10 @@ const ROLE_VARIANT: Record<string, "default" | "secondary" | "info" | "warning" 
 
 export default function TopNav() {
   const router = useRouter();
+  const pathname = usePathname();
   const [inboxOpen, setInboxOpen] = useState(false);
   const { alerts, loading, criticalCount } = useAlerts();
+  const { liveEvents } = useDashboardMetrics();
   const { apiOnline, wsConnected, apiGatewayStatus } = useConnection();
   const { identity, loading: authLoading } = useAuthRole();
   const clearAuth = useAuthStore((s) => s.clearAuth);
@@ -41,6 +45,8 @@ export default function TopNav() {
   const apiKey = useAuthStore((s) => s.apiKey);
   const storedUser = useAuthStore((s) => s.user);
   const { theme, toggleTheme } = useTheme();
+  const onDetections = pathname.startsWith("/red-team/monitor");
+  const alertBadge = onDetections ? severityBuckets(liveEvents).CRITICAL : criticalCount;
 
   // Profile menu
   const [profileOpen, setProfileOpen] = useState(false);
@@ -122,7 +128,7 @@ export default function TopNav() {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event("artsa:open-command-palette"))}
-            className="hidden items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/15 hover:bg-muted/50 hover:text-foreground md:inline-flex"
+            className="hidden items-center gap-2 rounded border border-border bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary md:inline-flex"
             aria-label="Open command palette"
           >
             <span>Search</span>
@@ -231,15 +237,21 @@ export default function TopNav() {
             variant="outline"
             size="sm"
             className="gap-2 font-mono text-xs"
-            aria-label="View alerts"
-            aria-expanded={inboxOpen}
-            onClick={() => setInboxOpen(true)}
+            aria-label={onDetections ? "Filter critical detections" : "View alerts"}
+            aria-expanded={onDetections ? undefined : inboxOpen}
+            onClick={() => {
+              if (onDetections) {
+                router.push("/red-team/monitor?severity=CRITICAL#live-activity");
+                return;
+              }
+              setInboxOpen(true);
+            }}
           >
             <Bell className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             <span className="hidden sm:inline">Alerts</span>
-            {criticalCount > 0 && (
+            {alertBadge > 0 && (
               <Badge variant="critical" className="h-5 min-w-5 justify-center px-1.5 text-[10px]">
-                {criticalCount}
+                {alertBadge}
               </Badge>
             )}
           </Button>

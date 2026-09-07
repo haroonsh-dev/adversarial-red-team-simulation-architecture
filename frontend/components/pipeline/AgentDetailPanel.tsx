@@ -28,16 +28,16 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
     return (
       <aside
         className={cn(
-          "flex min-h-[420px] flex-col rounded-[8px] border border-[#313131] bg-[#1e1e1e]",
+          "flex min-h-[420px] flex-col rounded-[8px] border border-border bg-card",
           className
         )}
       >
-        <header className="border-b border-[#313131] px-4 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#6798ff]">
+        <header className="border-b border-border px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#67b3ef]">
             Chain inspector
           </p>
-          <h3 className="mt-1 text-[15px] font-medium text-white">Select a hop</h3>
-          <p className="mt-1 text-[12px] text-[#a7a7a7]">
+          <h3 className="mt-1 text-[15px] font-medium text-foreground">Select a hop</h3>
+          <p className="mt-1 text-[12px] text-muted-foreground">
             Inspect handoff, integrity, and downstream chaining.
           </p>
         </header>
@@ -54,18 +54,18 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
   return (
     <aside
       className={cn(
-        "flex min-h-[420px] flex-col rounded-[8px] border border-[#313131] bg-[#1e1e1e]",
+        "flex min-h-[420px] flex-col rounded-[8px] border border-border bg-card",
         className
       )}
     >
-      <header className="border-b border-[#313131] px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#6798ff]">
+      <header className="border-b border-border px-4 py-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.85px] text-[#67b3ef]">
           Chain inspector · hop {pos}/6
         </p>
-        <h3 className="mt-1 text-[15px] font-medium tracking-[-0.19px] text-white">
+        <h3 className="mt-1 text-[15px] font-medium tracking-[-0.19px] text-foreground">
           {def.label}
         </h3>
-        <p className="mt-1 text-[12px] text-[#a7a7a7]">{def.headline}</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">{def.headline}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <Badge variant="outline" className="font-mono text-[10px] uppercase">
             {statusLabel(agent.status)}
@@ -78,33 +78,33 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             Current task
           </p>
-          <p className="text-[13px] text-white">{agent.currentTask}</p>
+          <p className="text-[13px] text-foreground">{agent.currentTask}</p>
         </div>
 
-        <div className="rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-3 py-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+        <div className="rounded-[6px] border border-border bg-background px-3 py-2.5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             Handoff chain
           </p>
           <div className="mt-2 flex items-center gap-2 text-[12px]">
-            <span className="text-[#a7a7a7]">{PIPELINE_AGENT_BY_ID[prev].label}</span>
-            <ArrowRight className="h-3 w-3 text-[#454545]" aria-hidden />
-            <span className="font-medium text-white">{def.label}</span>
-            <ArrowRight className="h-3 w-3 text-[#454545]" aria-hidden />
-            <span className="text-[#a7a7a7]">{PIPELINE_AGENT_BY_ID[next].label}</span>
+            <span className="text-muted-foreground">{PIPELINE_AGENT_BY_ID[prev].label}</span>
+            <ArrowRight className="h-3 w-3 text-muted-foreground" aria-hidden />
+            <span className="font-medium text-foreground">{def.label}</span>
+            <ArrowRight className="h-3 w-3 text-muted-foreground" aria-hidden />
+            <span className="text-muted-foreground">{PIPELINE_AGENT_BY_ID[next].label}</span>
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-[#7c7c7c]">{hop.label}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{hop.label}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <Metric label="Last run" value={agent.lastRun ?? "—"} />
-          <div className="rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-2.5 py-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+          <div className="rounded-[6px] border border-border bg-background px-2.5 py-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               Integrity
             </p>
-            <div className="mt-1 flex items-center gap-1.5 text-[12px] text-white">
+            <div className="mt-1 flex items-center gap-1.5 text-[12px] text-foreground">
               {agent.hmacVerified === true ? (
                 <>
                   <CheckCircle2 className="h-3.5 w-3.5 text-[#4ade80]" aria-hidden />
@@ -117,7 +117,7 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
                 </>
               ) : (
                 <>
-                  <Lock className="h-3.5 w-3.5 text-[#7c7c7c]" aria-hidden />
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                   N/A
                 </>
               )}
@@ -125,9 +125,9 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
           </div>
         </div>
 
-        <p className="text-[12px] leading-relaxed text-[#a7a7a7]">{def.description}</p>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">{def.description}</p>
 
-        <div className="space-y-2 border-t border-[#313131] pt-3">
+        <div className="space-y-2 border-t border-border pt-3">
           {agent.id === "redteam" && (
             <Button asChild size="sm" className="w-full justify-start">
               <Link href="/campaigns">Open Red Team</Link>
@@ -166,9 +166,9 @@ export function AgentDetailPanel({ agent, className }: AgentDetailPanelProps) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[6px] border border-[#313131] bg-[#0a0a0a] px-2.5 py-2">
-      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">{label}</p>
-      <p className="mt-0.5 font-mono text-[12px] text-white">{value}</p>
+    <div className="rounded-[6px] border border-border bg-background px-2.5 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-[12px] text-foreground">{value}</p>
     </div>
   );
 }

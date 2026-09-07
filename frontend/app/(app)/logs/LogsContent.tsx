@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { DetectSubNav } from "@/components/red-team/DetectSubNav";
 import { DashboardCard } from "@/components/shared/DashboardCard";
 import type { TelemetryEvent } from "@/components/shared/LiveTelemetryStream";
 import { StatCard } from "@/components/shared/StatCard";
@@ -83,10 +84,11 @@ function timelineToLogEvent(entry: TimelineEntry): LogEvent {
 export default function LogsContent() {
   const searchParams = useSearchParams();
   const sessionParam = searchParams.get("session")?.trim() ?? "";
+  const agentParam = searchParams.get("agent")?.trim() ?? "";
 
   const { liveEvents, loading, metrics, pullTelemetryRecent, connected } = useDashboardMetrics();
   const { apiOnline, wsConnected } = useConnection();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(agentParam);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
   const [sessionDetail, setSessionDetail] = useState<Session | null>(null);
@@ -95,6 +97,12 @@ export default function LogsContent() {
   const [paused, setPaused] = useState(false);
   const [frozenEvents, setFrozenEvents] = useState<LogEvent[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (agentParam) {
+      setQuery(agentParam);
+    }
+  }, [agentParam]);
 
   useEffect(() => {
     if (!apiOnline || sessionParam) return;
@@ -215,8 +223,8 @@ export default function LogsContent() {
   return (
     <PageStack>
       <PageHeader
-        title="Security event log"
-        description="SOC-grade stream of screened agent tool calls — severity, containment action, and forensic drill-down. Export for SIEM without raw argument payloads."
+        title="Activity"
+        description="Every agent action ARTSA checked — how risky it looked, and what we did."
         icon={<ScrollText className="h-5 w-5" />}
         badge={<LiveIndicator connected={apiOnline && wsConnected && !paused} className="meta-badge" />}
         actions={
@@ -243,7 +251,7 @@ export default function LogsContent() {
             <Button asChild size="sm" variant="outline">
               <Link href="/replay">
                 <FileCode className="h-4 w-4" />
-                Session replay
+                Sessions
               </Link>
             </Button>
             <Button
@@ -269,17 +277,19 @@ export default function LogsContent() {
         }
       />
 
+      <DetectSubNav />
+
       {sessionParam && (
         <div
           className={cn(
-            "rounded-[8px] border border-[#313131] bg-[#1e1e1e] p-4 sm:flex sm:items-center sm:justify-between sm:gap-4"
+            "rounded-[8px] border border-border bg-card p-4 sm:flex sm:items-center sm:justify-between sm:gap-4"
           )}
         >
           <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6798ff]">
+            <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#67b3ef]">
               {READINESS_UI.sessionFocus}
             </p>
-            <p className="mt-1 truncate font-mono text-sm text-white">{sessionParam}</p>
+            <p className="mt-1 truncate font-mono text-sm text-foreground">{sessionParam}</p>
             {sessionLoading ? (
               <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -339,7 +349,7 @@ export default function LogsContent() {
           label="Quarantine / Kill"
           value={actionCounts.KILL + actionCounts.QUARANTINE}
           icon={Shield}
-          subtitle={`${actionCounts.KILL} kill · ${actionCounts.QUARANTINE} quarantine`}
+          subtitle={`${actionCounts.KILL} stopped · ${actionCounts.QUARANTINE} held for review`}
           onClick={() => setActionFilter("QUARANTINE")}
         />
         <StatCard
@@ -361,7 +371,7 @@ export default function LogsContent() {
           description="Filter by severity or action · search agent, tool, session, event id"
           contentClassName="space-y-3 !p-0"
         >
-          <div className="space-y-3 border-b border-[#313131] px-4 pt-1 pb-3">
+          <div className="space-y-3 border-b border-border px-4 pt-1 pb-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="relative max-w-md flex-1">
                 <Search
@@ -424,7 +434,7 @@ export default function LogsContent() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7c7c7c]">
+            <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               <span>
                 Showing {filteredRows.length} of {rows.length}
                 {sessionParam ? " · session scoped" : ""}
@@ -438,7 +448,7 @@ export default function LogsContent() {
                 )}
                 <button
                   type="button"
-                  className="text-[#6798ff] hover:underline"
+                  className="text-[#67b3ef] hover:underline"
                   onClick={() => downloadSecurityExport(filteredRows, "json")}
                   disabled={filteredRows.length === 0}
                 >
@@ -456,7 +466,7 @@ export default function LogsContent() {
                 hasEvents={baseEvents.length > 0}
               />
               {baseEvents.length > 0 ? (
-                <p className="mt-3 text-center text-[13px] text-[#7c7c7c]">
+                <p className="mt-3 text-center text-[13px] text-muted-foreground">
                   No events match the current filters.
                 </p>
               ) : null}

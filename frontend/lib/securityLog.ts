@@ -205,8 +205,8 @@ export function actionToneClass(action: ContainmentAction): string {
     case "FLAG":
       return "text-[hsl(var(--severity-medium))]";
     case "ALLOW":
-      return "text-[#7c7c7c]";
+      return "text-muted-foreground";
     default:
-      return "text-[#a7a7a7]";
+      return "text-muted-foreground";
   }
 }

@@ -53,9 +53,11 @@ async def init_db() -> None:
         CampaignJobORM,
         CustomIntegrationORM,
         EventEvaluationORM,
+        HmacHandoffAuditORM,
         PartnerApiKeyORM,
         ProviderORM,
         SessionORM,
+        TargetORM,
         ToolCallEventORM,
         UserORM,
     )
@@ -102,6 +104,32 @@ async def init_db() -> None:
                     # WS-3.3 incident workflow: NEW | ACKNOWLEDGED | RESOLVED.
                     await conn.execute(text("ALTER TABLE alerts ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'NEW'"))
 
+            if "hmac_handoff_audit" in tables:
+                hmac_cols = [
+                    row[1]
+                    for row in await conn.execute(text("PRAGMA table_info(hmac_handoff_audit)"))
+                ]
+                if "nonce" in hmac_cols and "nonce_sha256" not in hmac_cols:
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE hmac_handoff_audit RENAME COLUMN nonce TO nonce_sha256"
+                        )
+                    )
+                    hmac_cols = [
+                        row[1]
+                        for row in await conn.execute(text("PRAGMA table_info(hmac_handoff_audit)"))
+                    ]
+                if "event_id" not in hmac_cols:
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE hmac_handoff_audit ADD COLUMN event_id VARCHAR(64) NOT NULL DEFAULT ''"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "UPDATE hmac_handoff_audit SET event_id = id WHERE event_id = '' OR event_id IS NULL"
+                        )
+                    )
             tenant_tables = (
                 "event_evaluations",
                 "custom_integrations",

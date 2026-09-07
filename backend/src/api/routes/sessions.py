@@ -36,6 +36,33 @@ class TimelineEntry(BaseModel):
     evaluation: dict[str, Any] | None = None
 
 
+_ACTION_TARGET_STATUS = {
+    "KILL": "BREACHED",
+    "QUARANTINE": "QUARANTINED",
+    "CLOSE": "CLOSED",
+    "RELEASE": "ACTIVE",
+}
+
+
+def _lookup_session(session_id: uuid.UUID, tracker: SessionTracker) -> Session | None:
+    return tracker.get_session(session_id) or memory_store.get_session(session_id)
+
+
+async def _require_tenant_session(
+    session_id: uuid.UUID,
+    tenant_id: str,
+    tracker: SessionTracker,
+    db: AsyncSession,
+) -> Session:
+    session = _lookup_session(session_id, tracker)
+    if not session:
+        repo = SessionRepository(db)
+        session = await repo.get_session(session_id)
+    if not session or session.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+    return session
+
+
 @router.get("/sessions", response_model=list[Session])
 async def list_sessions(
     tenant_id: str | None = Query(None),
@@ -46,8 +73,9 @@ async def list_sessions(
     tracker: SessionTracker = Depends(get_session_tracker),
     current_tenant: str = Depends(get_current_tenant),
 ):
-    """List agent sessions filtered by tenant_id and status."""
-    effective_tenant = tenant_id or current_tenant
+    """List agent sessions for the authenticated tenant only."""
+    del tenant_id  # callers cannot select another org via query string
+    effective_tenant = current_tenant
     active = list(tracker.active_sessions.values())
     if effective_tenant:
         active = [s for s in active if s.tenant_id == effective_tenant]
@@ -65,15 +93,10 @@ async def get_session_details(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     tracker: SessionTracker = Depends(get_session_tracker),
+    tenant_id: str = Depends(get_current_tenant),
 ):
     """Fetch details for a specific session by UUID."""
-    session = tracker.get_session(session_id)
-    if not session:
-        repo = SessionRepository(db)
-        session = await repo.get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
-    return session
+    return await _require_tenant_session(session_id, tenant_id, tracker, db)
 
 
 @router.get("/sessions/{session_id}/timeline", response_model=list[TimelineEntry])
@@ -81,8 +104,10 @@ async def get_session_timeline(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     tracker: SessionTracker = Depends(get_session_tracker),
+    tenant_id: str = Depends(get_current_tenant),
 ):
     """Return tool call events with containment evaluations ordered by timestamp."""
+    await _require_tenant_session(session_id, tenant_id, tracker, db)
     event_repo = EventRepository(db)
     eval_repo = EvaluationRepository(db)
 
@@ -107,28 +132,39 @@ async def enforce_session_action(
     payload: SessionActionRequest,
     db: AsyncSession = Depends(get_db),
     tracker: SessionTracker = Depends(get_session_tracker),
+    tenant_id: str = Depends(get_current_tenant),
 ):
-    """Enforce a containment action (KILL, THROTTLE, QUARANTINE) on an active session."""
-    session = tracker.get_session(session_id) or memory_store.get_session(session_id)
-    if not session:
-        repo = SessionRepository(db)
-        session = await repo.get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+    """Enforce a containment action. Authorization is server-side; tenant mismatch is 404."""
+    session = await _require_tenant_session(session_id, tenant_id, tracker, db)
 
     # Ensure tracker has the session for in-memory follow-up ingest checks
     if not tracker.get_session(session_id):
         tracker.active_sessions[str(session_id)] = session
 
+    target_status = _ACTION_TARGET_STATUS.get(payload.action)
+    if target_status and session.status == target_status:
+        logger.info("Idempotent %s on session %s (already %s)", payload.action, session_id, session.status)
+        return {
+            "session_id": str(session_id),
+            "enforced_action": payload.action,
+            "status": session.status,
+            "idempotent": True,
+        }
+
     tracker.apply_action(session_id, payload.action)
     repo = SessionRepository(db)
     updated = await repo.apply_action(session_id, payload.action)
     final = updated or tracker.get_session(session_id) or session
+    event_id = str(uuid.uuid4())
+    trace_id = str(uuid.uuid4())
 
     telemetry_bus.publish(
         {
             "type": "session_action",
+            "event_id": event_id,
+            "trace_id": trace_id,
             "session_id": str(session_id),
+            "tenant_id": tenant_id,
             "agent_id": final.agent_id,
             "action": payload.action,
             "session_status": final.status,
@@ -136,6 +172,11 @@ async def enforce_session_action(
             "verdict": "BREACHED" if payload.action == "KILL" else "SUSPICIOUS",
             "severity": "CRITICAL" if payload.action == "KILL" else "HIGH",
             "flags": ["manual_containment"],
+            "hmac_state": "unwired",
+            "hmac_verified": None,
+            "actor": tenant_id,
+            "result": final.status,
+            "reason": "operator_containment",
         }
     )
 
@@ -145,6 +186,9 @@ async def enforce_session_action(
         "session_id": str(session_id),
         "enforced_action": payload.action,
         "status": final.status,
+        "idempotent": False,
+        "trace_id": trace_id,
+        "event_id": event_id,
     }
 
 

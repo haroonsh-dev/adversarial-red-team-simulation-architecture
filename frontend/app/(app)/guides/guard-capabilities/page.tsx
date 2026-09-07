@@ -9,8 +9,8 @@ export default function GuardCapabilitiesPage() {
   return (
     <PageStack>
       <PageHeader
-        title="Guard capabilities"
-        description="AI Guardrails reference — mapped to ARTSA surfaces for evaluation and rollout planning."
+        title="What we stop"
+        description="What ARTSA can stop — mapped to the screens you use to test and roll out."
         icon={<Shield className="h-5 w-5" />}
         actions={
           <Button asChild variant="outline" size="sm">

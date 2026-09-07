@@ -55,3 +55,63 @@ def test_enforce_session_action():
     data = unwrap_response(response)
     assert data["enforced_action"] == "KILL"
     assert data["status"] == "BREACHED"
+
+
+def test_session_action_is_tenant_isolated():
+    session_id = str(uuid.uuid4())
+    event = {
+        "id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "agent_id": "tenant-agent",
+        "tool_name": "list_files",
+        "arguments": {},
+        "trace_id": str(uuid.uuid4()),
+    }
+    created = client.post("/v1/ingest", json=event, headers={"X-Tenant-ID": "acme"})
+    assert created.status_code in (200, 201)
+
+    foreign = client.post(
+        f"/v1/sessions/{session_id}/action",
+        json={"action": "QUARANTINE"},
+        headers={"X-Tenant-ID": "globex"},
+    )
+    assert foreign.status_code == 404
+
+    hidden = client.get(f"/v1/sessions/{session_id}", headers={"X-Tenant-ID": "globex"})
+    assert hidden.status_code == 404
+
+    own = client.post(
+        f"/v1/sessions/{session_id}/action",
+        json={"action": "QUARANTINE"},
+        headers={"X-Tenant-ID": "acme"},
+    )
+    assert own.status_code == 200
+    assert unwrap_response(own)["status"] == "QUARANTINED"
+
+
+def test_repeated_quarantine_is_idempotent():
+    session_id = str(uuid.uuid4())
+    event = {
+        "id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "agent_id": "idem-agent",
+        "tool_name": "list_files",
+        "arguments": {},
+        "trace_id": str(uuid.uuid4()),
+    }
+    client.post("/v1/ingest", json=event, headers={"X-Tenant-ID": "acme"})
+    first = client.post(
+        f"/v1/sessions/{session_id}/action",
+        json={"action": "QUARANTINE"},
+        headers={"X-Tenant-ID": "acme"},
+    )
+    second = client.post(
+        f"/v1/sessions/{session_id}/action",
+        json={"action": "QUARANTINE"},
+        headers={"X-Tenant-ID": "acme"},
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    data = unwrap_response(second)
+    assert data["status"] == "QUARANTINED"
+    assert data["idempotent"] is True

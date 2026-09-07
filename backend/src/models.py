@@ -167,6 +167,18 @@ class JudgeScore(BaseModel):
 # =============================================================================
 
 
+class HopLatencyMs(BaseModel):
+    """Measured wall-clock latency for agents that actually ran this round.
+
+    Missing / None means the hop was not timed (do not invent a number).
+    Research, Curator, and Defender are not fields — they do not execute.
+    """
+
+    red_team: float | None = None
+    target: float | None = None
+    judge: float | None = None
+
+
 class RoundResult(BaseModel):
     """Complete result of a single attack round."""
 
@@ -176,6 +188,8 @@ class RoundResult(BaseModel):
     score: JudgeScore
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     duration_ms: float = 0.0
+    hop_latency_ms: HopLatencyMs = Field(default_factory=HopLatencyMs)
+    hmac_handoffs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class GuardrailConfig(BaseModel):
@@ -206,6 +220,10 @@ class TargetConfig(BaseModel):
     system_prompt: str = ""
     api_key: str | None = None
     base_url: str | None = None
+    target_id: str | None = None
+    target_version: str | None = None
+    # Worker-resolved credential pointer (settings:openai, provider:name, test:deterministic).
+    secret_ref: str | None = None
     guardrails: GuardrailConfig = Field(default_factory=GuardrailConfig)
     rag: RAGConfig = Field(default_factory=RAGConfig)
 

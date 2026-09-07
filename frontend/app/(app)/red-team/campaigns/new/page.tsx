@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FRIENDLY_TECHNIQUE,
   RedTeamSimpleSteps,
@@ -15,6 +15,7 @@ import {
   mutationsForIntensity,
 } from "@/lib/redTeamAttackSets";
 import { toast } from "@/lib/stores/toast";
+import { kindLabel, type Target } from "@/lib/targets";
 import { cn } from "@/lib/utils";
 
 const ATTACK_SETS = [
@@ -26,11 +27,11 @@ const ATTACK_SETS = [
 ] as const;
 
 const FRIENDLY_SET: Record<string, string> = {
-  "Prompt Injection": "Trick the instructions",
-  "Tool Abuse": "Misuse tools",
-  "Data Exfiltration": "Steal private data",
-  "Goal Manipulation": "Change the goal",
-  "Memory Poisoning": "Poison memory",
+  "Prompt Injection": "Prompt Injection",
+  "Tool Abuse": "Tool Abuse",
+  "Data Exfiltration": "Data Exfiltration",
+  "Goal Manipulation": "Goal Manipulation",
+  "Memory Poisoning": "Memory Poisoning",
 };
 
 const MATRIX_ROWS = ["Injection", "Tool Abuse", "Exfiltration", "Goal Drift"] as const;
@@ -85,8 +86,19 @@ function buildMatrix(highAll: boolean): Record<string, Record<string, boolean>> 
 }
 
 export default function CampaignBuilderPage() {
+  return (
+    <Suspense fallback={<p className="text-[13px] text-muted-foreground">Loading campaign…</p>}>
+      <CampaignBuilder />
+    </Suspense>
+  );
+}
+
+function CampaignBuilder() {
   const router = useRouter();
-  const [name, setName] = useState("My AI safety test");
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("target");
+  const [target, setTarget] = useState<Target | null>(null);
+  const [name, setName] = useState("Production Agent Assessment");
   const [preset, setPreset] = useState<PresetId>("standard");
   const [sets, setSets] = useState<string[]>([...PRESETS[1]!.sets]);
   const [matrix, setMatrix] = useState(() => buildMatrix(false));
@@ -97,6 +109,19 @@ export default function CampaignBuilderPage() {
   const categories = useMemo(() => mergeCampaignCategories(sets, matrix), [sets, matrix]);
   const intensity = useMemo(() => intensityFromMatrix(matrix), [matrix]);
   const mut = useMemo(() => mutationsForIntensity(intensity), [intensity]);
+
+  useEffect(() => {
+    if (!targetId) return;
+    void fetchFromBackend<Target>(`/api/v1/targets/${encodeURIComponent(targetId)}`, {
+      silent: true,
+    }).then((t) => {
+      if (!t) return;
+      setTarget(t);
+      setName((prev) =>
+        prev === "Production Agent Assessment" ? `${t.name} · ${t.version}` : prev
+      );
+    });
+  }, [targetId]);
 
   const applyPreset = (id: PresetId) => {
     const p = PRESETS.find((x) => x.id === id)!;
@@ -123,32 +148,40 @@ export default function CampaignBuilderPage() {
       });
       return;
     }
+    if (target && !target.authorized) {
+      toast("Target is not authorized", {
+        description: "Authorize it on Targets before ARTSA sends it any traffic.",
+        variant: "error",
+      });
+      return;
+    }
     setLaunching(true);
     const res = await fetchFromBackend<{ campaign_id?: string; message?: string }>(
       "/api/v1/campaigns/baseline",
       {
         method: "POST",
         body: JSON.stringify({
-          name: name.trim() || "AI safety test",
+          name: name.trim() || "Red Team campaign",
           max_rounds: Math.max(1, Math.min(100, Math.floor(iterations) || 10)),
           categories,
           intensity,
           mutations_enabled: mut.mutations_enabled,
           max_mutations_per_attack: mut.max_mutations_per_attack,
+          ...(targetId ? { target_id: targetId } : {}),
         }),
         timeoutMs: 20_000,
       }
     );
     setLaunching(false);
     if (!res?.campaign_id) {
-      toast("Couldn’t start the test", {
-        description: "Connect your AI under Settings → Integrations, then try again.",
+      toast("Campaign not started", {
+        description: "Add a target provider under Settings → Integrations, then try again.",
         variant: "error",
       });
       return;
     }
-    toast("Test started", {
-      description: "Opening live results…",
+    toast("Campaign launched", {
+      description: res.message || "Opening live Monitor…",
       variant: "success",
     });
     router.push(`/red-team/monitor/${res.campaign_id}?follow=1`);
@@ -157,23 +190,58 @@ export default function CampaignBuilderPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Start a safety test</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Create campaign</h2>
         <p className="mt-1 max-w-xl text-[13px] text-muted-foreground">
-          Pick a simple preset. We’ll run attacks against your AI and show what got blocked.
+          Pick a preset or customize attack sets — then launch and watch rounds in Monitor.
         </p>
       </div>
 
+      {target ? (
+        <div className="rounded-md border border-border bg-card px-3 py-2.5 text-[13px]">
+          <p className="font-medium text-foreground">
+            Target: {target.name}
+            <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+              {kindLabel(target.kind)} · {target.version} · {target.provider}/{target.model}
+            </span>
+          </p>
+          {target.authorized ? (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              This run uses the registered target. Results will be attributable to this system.
+            </p>
+          ) : (
+            <p className="mt-1 text-[12px] text-[hsl(var(--severity-high))]">
+              This target is not authorized. ARTSA will refuse to send it traffic until you
+              authorize it on{" "}
+              <Link href="/targets" className="underline-offset-2 hover:underline">
+                Targets
+              </Link>
+              .
+            </p>
+          )}
+        </div>
+      ) : targetId ? (
+        <p className="text-[13px] text-muted-foreground">Loading target…</p>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">
+          No target selected.{" "}
+          <Link href="/targets" className="underline-offset-2 hover:underline">
+            Register one
+          </Link>{" "}
+          so this campaign can be compared against later versions.
+        </p>
+      )}
+
       <RedTeamSimpleSteps
         steps={[
-          { n: 1, title: "Name it", body: "Give the test a clear name you’ll recognize later." },
-          { n: 2, title: "Choose how deep", body: "Quick, Standard, or Thorough — or fine-tune below." },
-          { n: 3, title: "Start", body: "We’ll open live results as soon as the test begins." },
+          { n: 1, title: "Name it", body: "Give the campaign a clear name you’ll recognize later." },
+          { n: 2, title: "Choose depth", body: "Quick, Standard, or Thorough — or fine-tune below." },
+          { n: 3, title: "Launch", body: "We’ll open Monitor as soon as the campaign starts." },
         ]}
       />
 
       <section className="space-y-2">
         <label className="block space-y-1 text-[12px]">
-          <span className="text-muted-foreground">Test name</span>
+          <span className="text-muted-foreground">Campaign name</span>
           <input
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px]"
             value={name}
@@ -317,10 +385,14 @@ export default function CampaignBuilderPage() {
           <Link href="/red-team/campaigns">Back</Link>
         </Button>
         <Button size="sm" variant="outline" asChild>
-          <Link href="/red-team/lab">Try one message first</Link>
+          <Link href="/red-team/lab">Attack Lab</Link>
         </Button>
-        <Button size="sm" onClick={() => void launch()} disabled={launching || categories.length === 0}>
-          {launching ? "Starting…" : "Start safety test"}
+        <Button
+          size="sm"
+          onClick={() => void launch()}
+          disabled={launching || categories.length === 0 || (Boolean(target) && !target?.authorized)}
+        >
+          {launching ? "Launching…" : "Launch campaign"}
         </Button>
       </div>
     </div>

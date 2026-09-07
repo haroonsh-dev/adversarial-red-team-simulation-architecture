@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { LandingMotionCard } from "@/components/landing/LandingMotionCard";
 import { Button } from "@/components/ui/button";
 import type { LabProbeOutcome } from "@/lib/labActions";
 import { probeRisk } from "@/lib/labActions";
-import { easeOut } from "@/lib/motionPresets";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -50,7 +48,7 @@ export function AttackLabLiveConsole({
           : "neutral";
 
   return (
-    <LandingMotionCard
+    <LandingMotionCard instant
       index={0}
       glow={false}
       className="sticky top-2 z-20 overflow-hidden border border-[hsl(var(--severity-info-border))] bg-[hsl(var(--severity-info-subtle))] p-4 shadow-sm"
@@ -58,10 +56,10 @@ export function AttackLabLiveConsole({
       {showActions ? (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium text-muted-foreground">Your next step</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Live actions</p>
             <p className="mt-1 text-[13px] text-foreground">
-              <span className="font-medium">Try once</span> tests this message right now.{" "}
-              <span className="font-medium">Run full test</span> starts a longer safety drill.
+              <span className="font-medium">Check</span> scores this attack message now.{" "}
+              <span className="font-medium">Start run</span> launches a full lab experiment.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -71,31 +69,28 @@ export function AttackLabLiveConsole({
               disabled={probing || launching || payloadChars === 0}
               onClick={() => onProbe(true)}
             >
-              {probing ? "Testing…" : "Try once"}
+              {probing ? "Checking…" : "Check"}
             </Button>
             <Button
               size="sm"
               disabled={probing || launching || payloadChars === 0 || !hasProvider}
               onClick={onLaunch}
             >
-              {launching ? "Starting…" : hasProvider ? "Run full test" : "Connect AI first"}
+              {launching ? "Starting…" : hasProvider ? "Start run" : "Add provider first"}
             </Button>
           </div>
         </div>
       ) : (
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground">Latest result</p>
+          <p className="text-[11px] font-medium text-muted-foreground">Last check result</p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            This is a real score from your last try — not a guess.
+            Live score from the message above — not a planning estimate.
           </p>
         </div>
       )}
 
       {last ? (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: easeOut }}
+        <div
           className={cn(
             "mt-4 rounded-md border p-3",
             last.ok
@@ -173,15 +168,15 @@ export function AttackLabLiveConsole({
                   onClick={onLaunch}
                   disabled={launching || !hasProvider}
                 >
-                  {hasProvider ? "Run a full test next" : "Connect AI to run a full test"}
+                  {hasProvider ? "Escalate to full run" : "Add provider to start a run"}
                 </button>
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       ) : (
         <p className="mt-3 text-[12px] text-muted-foreground">
-          No result yet — run a quick check to see how containment scores this message.
+          No result yet — run a check to see how containment scores this message.
         </p>
       )}
     </LandingMotionCard>

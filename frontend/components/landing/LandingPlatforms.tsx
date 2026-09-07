@@ -92,7 +92,7 @@ function PlatformRow({ platform, i }: { platform: Platform; i: number }) {
             {platform.name}
             {platform.beta ? <span className="lp-beta">BETA</span> : null}
           </h3>
-          <p className="mt-2 text-[14px] font-medium tracking-[-0.17px] text-[var(--color-blue-cornflower)]">
+          <p className="mt-2 text-[14px] font-medium text-[var(--color-pistachio)]">
             {platform.tagline}
           </p>
           <p className="lp-body mt-5 max-w-md">{platform.description}</p>
@@ -131,10 +131,14 @@ export function LandingPlatforms() {
           viewport={{ once: true }}
           transition={{ duration: 0.45, ease: easeOut }}
         >
-          <p className="lp-eyebrow">Our software</p>
+          <p className="lp-eyebrow">Product</p>
           <h2 className="lp-heading mt-6 max-w-3xl">
-            Platforms for the full agent security lifecycle
+            Monitor every agent, action, and chain to stop misuse
           </h2>
+          <p className="lp-body mt-4 max-w-2xl">
+            Guard, Red Team, Command Center, Findings, and Session Autopsy share one runtime —
+            so a campaign hit becomes a containment rule without leaving the control plane.
+          </p>
         </motion.div>
 
         <div className="mt-10">

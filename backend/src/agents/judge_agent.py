@@ -85,6 +85,12 @@ class JudgeAgent(BaseAgent):
         )
         self.use_llm = config.get("use_llm", True)
 
+    def receive_signed(self, envelope):
+        """HMAC-verify a Target envelope before judging."""
+        from src.agents.handoff_worker import accept_envelope
+
+        return accept_envelope("judge", envelope)
+
     def evaluate(
         self, attack: AttackPayload, response: TargetResponse
     ) -> JudgeScore:

@@ -17,7 +17,7 @@ export default function RedTeamVerdictChartInner({ data }: { data: VerdictSlice[
             innerRadius="55%"
             outerRadius="80%"
             paddingAngle={2}
-            stroke="#0a0a0a"
+            stroke="hsl(var(--background))"
             strokeWidth={2}
           >
             {data.map((entry) => (
@@ -28,8 +28,8 @@ export default function RedTeamVerdictChartInner({ data }: { data: VerdictSlice[
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#7c7c7c]">Rounds</p>
-        <p className="font-mono text-xl font-medium text-white">{total}</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Rounds</p>
+        <p className="font-mono text-xl font-medium text-foreground">{total}</p>
       </div>
     </div>
   );

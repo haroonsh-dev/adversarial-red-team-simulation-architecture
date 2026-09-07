@@ -63,7 +63,7 @@ export default function FindingsPage() {
     <PageStack>
       <PageHeader
         title="Findings"
-        description="Server-backed triage queue with ASI mapping, chain-of-custody, and playbook promotion."
+        description="Problems found from tests and live activity, with a trail of what happened and what to do next."
         icon={<FileSearch className="h-5 w-5" />}
         badge={
           playbookVersion > 0 ? (
@@ -75,12 +75,12 @@ export default function FindingsPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm" className="interactive-pill">
-              <Link href="/admin/policies">Playbook history</Link>
+              <Link href="/admin/policies">Policies</Link>
             </Button>
             <Button asChild size="sm" className="interactive-pill">
-              <Link href="/sandbox">
+              <Link href="/red-team/lab">
                 <ShieldPlus className="h-3.5 w-3.5" />
-                Sandbox finding
+                Attack Lab
               </Link>
             </Button>
           </div>
@@ -91,10 +91,10 @@ export default function FindingsPage() {
         <EmptyState
           icon={FileSearch}
           title="No findings yet"
-          description="Run a campaign or ingest telemetry. Findings are stored and tracked on the server."
+          description="Run an attack test or send live activity. Findings are stored and tracked."
           action={
             <Button asChild size="sm">
-              <Link href="/campaigns">Red Team</Link>
+                <Link href="/red-team/lab">Attack Lab</Link>
             </Button>
           }
           variant="hero"

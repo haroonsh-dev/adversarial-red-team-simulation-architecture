@@ -5,6 +5,7 @@ import {
   emptyCommandGraph,
   layoutByKind,
   layoutNodes,
+  type CommandGraphNode,
 } from "@/lib/commandGraph";
 
 describe("commandGraph", () => {
@@ -50,6 +51,45 @@ describe("commandGraph", () => {
     const session = laid.find((n) => n.kind === "session")!;
     expect(agent.x).toBeLessThan(tool.x);
     expect(session.y).toBeLessThan(agent.y);
+  });
+
+  it("does not pile many sessions into the same pixel", () => {
+    type RawNode = Omit<CommandGraphNode, "x" | "y">;
+    const sessionNodes: RawNode[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `s${i}`,
+      label: `sess-${i}`,
+      kind: "session" as const,
+      severity: "SAFE" as const,
+      riskScore: i,
+      status: "ACTIVE",
+      eventCount: 1,
+    }));
+    const otherNodes: RawNode[] = [
+      {
+        id: "a1",
+        label: "agent",
+        kind: "agent" as const,
+        severity: "HIGH" as const,
+        riskScore: 70,
+        status: "ACTIVE",
+        eventCount: 3,
+      },
+      {
+        id: "t1",
+        label: "tool",
+        kind: "tool" as const,
+        severity: "SAFE" as const,
+        riskScore: 0,
+        status: "ACTIVE",
+        eventCount: 1,
+      },
+    ];
+    const many: RawNode[] = sessionNodes.concat(otherNodes);
+    const laid = layoutByKind(many);
+    const sessions = laid.filter((n) => n.kind === "session");
+    expect(sessions.length).toBeGreaterThan(1);
+    const xs = new Set(sessions.map((s) => Math.round(s.x)));
+    expect(xs.size).toBeGreaterThan(1);
   });
 
   it("builds graph from topology payload", () => {

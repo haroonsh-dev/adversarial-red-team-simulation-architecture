@@ -112,6 +112,13 @@ export default function ObservatoryPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight">Continuous Observatory</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Security regression tracking, Red Queen co-evolution metrics, and CI benchmark gates — live data only.
+        </p>
+      </div>
+
       {data?.platform && (
         <DashboardCard
           title="Platform Status"

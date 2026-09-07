@@ -53,7 +53,7 @@ export function buildVerdictSlices(metrics: ScanMetrics): VerdictSlice[] {
       key,
       label: key,
       value,
-      fill: VERDICT_FILL[key.toUpperCase()] ?? "#6798ff",
+      fill: VERDICT_FILL[key.toUpperCase()] ?? "#67b3ef",
     }))
     .sort((a, b) => b.value - a.value);
 }
