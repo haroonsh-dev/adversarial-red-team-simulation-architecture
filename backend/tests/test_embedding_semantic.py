@@ -26,11 +26,13 @@ def test_resolve_auto_uses_open_source_when_fastembed_installed(monkeypatch) -> 
     assert settings.resolve_embedding_model() == "local-bge-small"
 
 
-def test_resolve_auto_falls_back_to_hash_without_fastembed(monkeypatch) -> None:
+def test_resolve_auto_keeps_real_model_without_fastembed(monkeypatch) -> None:
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     monkeypatch.setattr(settings, "ARTSA_EMBEDDING_MODEL", "auto")
     monkeypatch.setattr("src.data.embedding_manager.fastembed_available", lambda: False)
-    assert settings.resolve_embedding_model() == "hash-1024"
+    # Production must fail closed during inference; selecting hash-1024 here
+    # would silently weaken semantic detection when FastEmbed is unavailable.
+    assert settings.resolve_embedding_model() == "local-bge-small"
 
 
 def test_resolve_explicit_local_model_wins(monkeypatch) -> None:
@@ -109,3 +111,22 @@ def test_semantic_reference_library_covers_all_families() -> None:
     assert "developer mode" in joined         # persona/jailbreak
     assert "exfiltrate" in joined             # exfiltration
     assert "ignore" in joined                 # instruction override
+
+
+def test_semantic_reference_embeddings_reused_across_detectors(monkeypatch) -> None:
+    """Ablation creates many detectors but embeds the static reference set once."""
+    SemanticDetector._reference_cache.clear()
+    calls: list[str] = []
+    original_embed = HighAccuracy1024EmbeddingFunction.embed
+
+    def counting_embed(self, text: str):
+        calls.append(text)
+        return original_embed(self, text)
+
+    monkeypatch.setattr(HighAccuracy1024EmbeddingFunction, "embed", counting_embed)
+    SemanticDetector()
+    first_count = len(calls)
+    SemanticDetector()
+
+    assert first_count == len(MALICIOUS_PHRASES)
+    assert len(calls) == first_count

@@ -50,10 +50,12 @@ async def init_db() -> None:
     from src.data.orm import (  # noqa: F401
         AlertORM,
         AlertRuleORM,
+        ApprovalRequestORM,
         CampaignJobORM,
         CustomIntegrationORM,
         EventEvaluationORM,
         HmacHandoffAuditORM,
+        RuntimeEnforcementAuditORM,
         PartnerApiKeyORM,
         ProviderORM,
         SessionORM,
@@ -103,6 +105,10 @@ async def init_db() -> None:
                 if "status" not in cols:
                     # WS-3.3 incident workflow: NEW | ACKNOWLEDGED | RESOLVED.
                     await conn.execute(text("ALTER TABLE alerts ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'NEW'"))
+            if "providers" in tables:
+                cols = [row[1] for row in await conn.execute(text("PRAGMA table_info(providers)"))]
+                if "tenant_id" not in cols:
+                    await conn.execute(text("ALTER TABLE providers ADD COLUMN tenant_id VARCHAR(255) NOT NULL DEFAULT 'default_org'"))
 
             if "hmac_handoff_audit" in tables:
                 hmac_cols = [

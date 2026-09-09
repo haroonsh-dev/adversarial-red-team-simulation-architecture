@@ -12,7 +12,7 @@ def test_asi_taxonomy_marks_asi08_unimplemented():
     assert response.status_code == 200
     data = unwrap_response(response)
     by_code = {row["code"]: row for row in data["catalog"]}
-    assert by_code["ASI08"]["status"] == "not_implemented"
+    assert by_code["ASI08"]["status"] == "supported"
     assert data["hmac"]["status"] == "supported"
     assert data["hmac"]["threat_code"] == "HMAC"
 

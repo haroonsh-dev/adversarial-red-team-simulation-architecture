@@ -214,16 +214,19 @@ class TargetConfig(BaseModel):
     """Configuration for the target LLM agent."""
 
     provider: str = "openai"
-    model: str = "gpt-5.6-terra"
+    # None means "use the resolved provider default".  Provider selection is
+    # never inferred from a model string.
+    model: str | None = None
     temperature: float = 0.7
 
     system_prompt: str = ""
-    api_key: str | None = None
     base_url: str | None = None
     target_id: str | None = None
     target_version: str | None = None
-    # Worker-resolved credential pointer (settings:openai, provider:name, test:deterministic).
-    secret_ref: str | None = None
+    tenant_id: str | None = None
+    # Immutable, tenant-bound identifier of an encrypted provider row.  This
+    # is safe to serialize; credentials are resolved only at client creation.
+    provider_ref: str | None = None
     guardrails: GuardrailConfig = Field(default_factory=GuardrailConfig)
     rag: RAGConfig = Field(default_factory=RAGConfig)
 

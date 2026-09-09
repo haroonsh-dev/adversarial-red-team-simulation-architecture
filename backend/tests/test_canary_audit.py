@@ -39,10 +39,9 @@ def test_canary_gate_runs_and_reports_aggregates_only():
     assert "recall@80" in out
     # Ground truth is never printed: no tool_name/arguments of the samples.
     assert "label_hash" not in out
-    # Gate currently FAILS on the held-out set (harder than golden) — the exit
-    # code must be 1 and the failure must be reported, not hidden.
-    assert result.returncode == 1
-    assert "CANARY GATE FAILED" in out
+    # The held-out canary set now meets the documented release floors.
+    assert result.returncode == 0
+    assert "Canary gate passed." in out
 
 
 def test_contamination_audit_smoke():

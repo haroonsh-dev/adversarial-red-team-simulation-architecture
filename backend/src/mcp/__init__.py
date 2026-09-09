@@ -1,0 +1,1 @@
+"""Live MCP transport boundaries."""

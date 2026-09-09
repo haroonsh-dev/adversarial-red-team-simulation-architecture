@@ -1,7 +1,7 @@
 """OWASP ASI01–ASI10 catalog with honest implementation status.
 
 Do not emit a detection for a category whose detector does not exist.
-ASI08 (cascading failures / circuit breaker) is a documented gap.
+ASI08 is supported by the durable session circuit breaker.
 HMAC inter-agent handoff is a separate integrity family, not an ASI code.
 Red Team → Target → Judge is signed and verified on the receiver (ADR-007).
 """
@@ -87,10 +87,10 @@ ASI_CATALOG: tuple[AsiEntry, ...] = (
     AsiEntry(
         "ASI08",
         "Cascading Failures",
-        AsiStatus.NOT_IMPLEMENTED,
+        AsiStatus.SUPPORTED,
+        ("SessionCircuitBreaker",),
         (),
-        (),
-        "Circuit breaker is a documented product gap. Never fabricate coverage.",
+        "Repeated BLOCK decisions open a durable, session-scoped circuit breaker.",
     ),
     AsiEntry(
         "ASI09",
@@ -123,6 +123,7 @@ _DETECTOR_TO_ASI: dict[str, str] = {
     "tooloutputscanner": "ASI02",
     "rulebaseddetector": "ASI02",
     "sqlinjectiondetector": "ASI05",
+    "sessioncircuitbreaker": "ASI08",
 }
 
 _CATEGORY_TO_ASI: dict[str, str] = {}
@@ -154,12 +155,10 @@ def classify_asi(
 ) -> tuple[str | None, AsiStatus | None]:
     """Return (asi_code, status) from real signals only.
 
-    Never returns ASI08. Returns (None, None) when nothing classifies.
+    Returns (None, None) when nothing classifies.
     """
     for raw in detectors or []:
         code = _DETECTOR_TO_ASI.get(str(raw).lower().replace(" ", ""))
-        if code == "ASI08":
-            continue
         entry = ASI_BY_CODE.get(code or "")
         if entry and entry.status != AsiStatus.NOT_IMPLEMENTED:
             return entry.code, entry.status
@@ -167,7 +166,7 @@ def classify_asi(
     if attack_category:
         key = str(attack_category).upper().replace(" ", "_")
         code = _CATEGORY_TO_ASI.get(key) or _CATEGORY_TO_ASI.get(key.replace("_", ""))
-        if code and code != "ASI08":
+        if code:
             entry = ASI_BY_CODE[code]
             return entry.code, entry.status
 

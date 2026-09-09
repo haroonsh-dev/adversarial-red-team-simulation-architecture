@@ -146,10 +146,11 @@ class ToolOutputScanner(BaseDetector):
                     description=desc,
                     evidence={
                         "matched_pattern": desc,
-                        "matched_text": match.group(0),
                         "tool": event.tool_name,
                         "span": [match.start(), match.end()],
+                        "match_length": match.end() - match.start(),
                         "source": "tool_response",
+                        "fail_closed": True,
                     },
                     detector=self.name,
                 )

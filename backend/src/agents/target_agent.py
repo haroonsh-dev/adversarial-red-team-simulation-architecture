@@ -19,15 +19,17 @@ logger = logging.getLogger(__name__)
 class TargetAgent(BaseAgent):
     """The defending LLM that processes user inputs through guardrails."""
 
-    def __init__(self, config: TargetConfig) -> None:
+    def __init__(self, config: TargetConfig, *, explicit_api_key: str | None = None) -> None:
         super().__init__(
             name="TargetAgent",
             provider=config.provider,
-            model=config.model,
+            model=config.model or "default",
             temperature=config.temperature,
             system_prompt=config.system_prompt,
-            api_key=getattr(config, "api_key", None),
-            base_url=getattr(config, "base_url", None),
+            api_key=explicit_api_key,
+            base_url=config.base_url,
+            tenant_id=config.tenant_id,
+            provider_ref=config.provider_ref,
         )
         self.config = config
 

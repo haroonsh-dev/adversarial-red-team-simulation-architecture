@@ -18,6 +18,7 @@ import logging
 from datetime import UTC, datetime
 from typing import NamedTuple
 
+from src.core.attack_taxonomy import get as get_taxonomy
 from src.core.models.targets import (
     Capability,
     CapabilityId,
@@ -25,7 +26,6 @@ from src.core.models.targets import (
     Target,
     TargetSurface,
 )
-from src.core.attack_taxonomy import get as get_taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -263,18 +263,11 @@ def _build_target_config(target: Target):
         model=target.model or "gpt-4o-mini",
         system_prompt=target.system_prompt or "",
         base_url=target.base_url,
-        api_key=_resolve_api_key(target.provider),
+        tenant_id=target.tenant_id,
+        # Provider names are resolved within the target tenant immediately
+        # before client construction; credentials never enter TargetConfig.
+        provider_ref=target.provider or None,
     )
-
-
-def _resolve_api_key(provider: str) -> str | None:
-    from src.api.routes.campaigns import _resolve_provider_api_key
-
-    try:
-        return _resolve_provider_api_key(provider)
-    except Exception:  # pragma: no cover - key lookup must not break discovery
-        logger.debug("Provider key lookup failed for %s", provider)
-        return None
 
 
 async def discover_target(target: Target) -> TargetSurface:

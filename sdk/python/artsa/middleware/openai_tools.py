@@ -36,7 +36,9 @@ def guard_openai_tool_call(
         arguments = {"raw": str(raw_args)}
 
     client.guard_tool_call(session_id, agent_id, name, arguments, enforce=enforce)
-    return execute(name, arguments)
+    result = execute(name, arguments)
+    client.guard_tool_result(session_id, agent_id, name, arguments, result, enforce=enforce)
+    return result
 
 
 def wrap_openai_tools(

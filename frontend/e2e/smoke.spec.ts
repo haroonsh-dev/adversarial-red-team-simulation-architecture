@@ -36,7 +36,7 @@ test.describe("ARTSA frontend smoke", () => {
       timeout: 15_000,
     });
     await expect(page.getByRole("heading", { name: /agent goal hijack/i }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: /rogue agents/i }).first()).toBeVisible();
+    await expect(page.getByText("Rogue Agents", { exact: true })).toBeVisible();
   });
 
   test("sidebar navigation includes red team", async ({ page }) => {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import time
 import uuid
 from typing import Any, Dict, Optional, Sequence
@@ -13,6 +14,16 @@ logger = logging.getLogger("artsa.sdk")
 
 BLOCKING_ACTIONS = frozenset({"KILL", "QUARANTINE"})
 CONTAINED_STATUSES = frozenset({"BREACHED", "QUARANTINED", "CLOSED"})
+
+
+def _tool_result_payload(result: Any) -> Dict[str, Any]:
+    """Normalize arbitrary tool returns for the transient post-exec scan."""
+    try:
+        json.dumps(result)
+        value = result
+    except (TypeError, ValueError):
+        value = str(result)
+    return {"result": value}
 
 
 class ArtsaBlockedError(RuntimeError):
@@ -179,6 +190,7 @@ class ArtsaClient:
         *,
         event_id: Optional[str] = None,
         trace_id: Optional[str] = None,
+        approval_retry_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send a tool call to ARTSA and return the ingest + evaluation payload."""
         payload = {
@@ -189,6 +201,8 @@ class ArtsaClient:
             "arguments": arguments,
             "trace_id": trace_id or str(uuid.uuid4()),
         }
+        if approval_retry_token:
+            payload["approval_retry_token"] = approval_retry_token
         return self._post("/api/v1/ingest", payload)
 
     def is_blocked(self, result: Dict[str, Any]) -> bool:
@@ -214,6 +228,41 @@ class ArtsaClient:
         if enforce and self.is_blocked(result):
             raise ArtsaBlockedError(tool_name, result)
         return result
+
+    def guard_tool_result(
+        self,
+        session_id: str,
+        agent_id: str,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        result: Any,
+        *,
+        enforce: bool = True,
+        event_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        approval_retry_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Scan a completed tool return and withhold it on containment.
+
+        ARTSA scans ``result`` transiently; its ingest mode persists only a
+        digest and redacted findings, never the raw tool output.
+        """
+        payload = {
+            "id": event_id or str(uuid.uuid4()),
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "arguments": arguments,
+            "response": _tool_result_payload(result),
+            "post_exec_redacted": True,
+            "trace_id": trace_id or str(uuid.uuid4()),
+        }
+        if approval_retry_token:
+            payload["approval_retry_token"] = approval_retry_token
+        response = self._post("/api/v1/ingest", payload)
+        if enforce and self.is_blocked(response):
+            raise ArtsaBlockedError(tool_name, response)
+        return response
 
     def guard_rag_search(
         self,

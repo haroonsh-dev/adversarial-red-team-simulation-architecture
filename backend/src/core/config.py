@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="change-me-in-production", min_length=16)
     ARTSA_API_KEY: str | None = None
     ARTSA_TENANT_ID: str = "default_org"
+    # Standalone SDK execution must opt into a tenant explicitly.  This is
+    # deliberately separate from ARTSA_TENANT_ID, whose legacy default is used
+    # by parts of the HTTP application.
+    ARTSA_SDK_TENANT_ID: str | None = None
+    # Environment provider credentials are a local-development escape hatch,
+    # never an implicit production credential source.
+    ARTSA_ALLOW_ENV_PROVIDER_FALLBACK: bool = False
+    # Tenant isolation cannot be enabled in production while the migration's
+    # temporary default_org assignment still represents real providers.
+    ARTSA_PROVIDER_TENANT_ISOLATION_ENABLED: bool = True
     ARTSA_DATA_DIR: str = "./data"
 
     # ── Database ────────────────────────────────────────────────────────
@@ -90,6 +100,16 @@ class Settings(BaseSettings):
     ARTSA_USER_STORE: str | None = None
     # When true, ingest auto-marks sessions BREACHED/QUARANTINED on KILL/QUARANTINE verdicts
     ARTSA_AUTO_ENFORCE: bool = True
+    ARTSA_APPROVAL_TTL_SECONDS: int = 900
+    # ASI08 session circuit breaker. Repeated hard containment decisions in a
+    # short window indicate a cascading/looping agent and terminate its session.
+    ARTSA_CIRCUIT_BREAKER_ENABLED: bool = True
+    ARTSA_CIRCUIT_BREAKER_BLOCK_LIMIT: int = 3
+    ARTSA_CIRCUIT_BREAKER_WINDOW_SECONDS: int = 60
+    # MCP stdio wrapper protocol bounds.  Tool calls/results use the larger
+    # frame cap; notifications are intentionally kept small and pass through.
+    ARTSA_MCP_STDIO_MAX_LINE_BYTES: int = 1_048_576
+    ARTSA_MCP_STDIO_MAX_NOTIFICATION_BYTES: int = 65_536
     # Reject further ingest for already contained sessions (fail closed at API)
     ARTSA_BLOCK_CONTAINED_SESSIONS: bool = True
     USE_CHROMA_RAG: bool = False
@@ -210,6 +230,8 @@ class Settings(BaseSettings):
     #   false -> always block internal targets
     #   unset -> auto: blocked in production, allowed in dev/testing
     ARTSA_PROXY_ALLOW_INTERNAL_TARGETS: bool | None = None
+    # Comma-separated output canaries (hashed at scan time; never persisted).
+    ARTSA_OUTPUT_CANARIES: str = ""
 
     # ── SIEM / SOAR alert channels ───────────────────────────────────────
     # Environment-level integration creds. Per-tenant rules can be configured

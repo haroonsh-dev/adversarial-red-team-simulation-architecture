@@ -142,6 +142,13 @@ export function CommandCenterFloor({
 
   const currentRound = LIVE_ROUNDS[roundIdx] ?? LIVE_ROUNDS[0]!;
   const logLines = useMemo(() => logWindow(LIVE_ROUNDS, roundIdx, 5), [roundIdx]);
+  const circuitBreakerOpen = useMemo(
+    () => events.some((event) => {
+      const categories = event.categories;
+      return Array.isArray(categories) && categories.some((category) => String(category).startsWith("ASI08"));
+    }),
+    [events]
+  );
 
   // Derived or default KPIs matching screenshots
   const kpiData = useMemo(() => {
@@ -349,6 +356,12 @@ export function CommandCenterFloor({
       {/* Sticky Tactical HUD Container (P1 & P3) */}
       <header className="sticky top-0 z-30 w-full bg-background/95 backdrop-blur-md border-b border-border/80 shadow-xs">
         <div className="w-full max-w-[1520px] mx-auto px-4 sm:px-6 py-3 space-y-3">
+          <h1 className="text-sm font-semibold tracking-tight text-foreground">Command Center</h1>
+          {circuitBreakerOpen ? (
+            <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+              Circuit breaker open — cascading failures contained.
+            </p>
+          ) : null}
           {/* Top Operational Identity + Global Emergency Containment Rail (P4) */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommandCenterCampaignContext

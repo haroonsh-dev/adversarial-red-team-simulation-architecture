@@ -31,6 +31,7 @@ def _mask(key: str) -> str:
 def _row_to_dict(row: ProviderORM, include_key: bool = False) -> dict[str, Any]:
     data = {
         "id": row.id,
+        "tenant_id": row.tenant_id,
         "name": row.name,
         "provider_type": row.provider_type,
         "base_url": row.base_url,
@@ -49,14 +50,20 @@ def _row_to_dict(row: ProviderORM, include_key: bool = False) -> dict[str, Any]:
     return data
 
 
-async def list_providers(session: AsyncSession, include_key: bool = False) -> list[dict[str, Any]]:
-    rows = (await session.execute(select(ProviderORM).order_by(ProviderORM.name))).scalars().all()
+async def list_providers(
+    session: AsyncSession, *, tenant_id: str, include_key: bool = False
+) -> list[dict[str, Any]]:
+    rows = (await session.execute(
+        select(ProviderORM).where(ProviderORM.tenant_id == tenant_id).order_by(ProviderORM.name)
+    )).scalars().all()
     return [_row_to_dict(r, include_key=include_key) for r in rows]
 
 
-async def get_provider(session: AsyncSession, name: str) -> dict[str, Any] | None:
+async def get_provider(session: AsyncSession, name: str, *, tenant_id: str) -> dict[str, Any] | None:
     row = (
-        await session.execute(select(ProviderORM).where(ProviderORM.name == name))
+        await session.execute(select(ProviderORM).where(
+            ProviderORM.tenant_id == tenant_id, ProviderORM.name == name
+        ))
     ).scalar_one_or_none()
     return _row_to_dict(row, include_key=True) if row else None
 
@@ -64,6 +71,7 @@ async def get_provider(session: AsyncSession, name: str) -> dict[str, Any] | Non
 async def upsert_provider(
     session: AsyncSession,
     *,
+    tenant_id: str,
     name: str,
     api_key: str,
     provider_type: str = "custom",
@@ -77,13 +85,16 @@ async def upsert_provider(
         raise ValueError("provider name is required")
 
     row = (
-        await session.execute(select(ProviderORM).where(ProviderORM.name == name))
+        await session.execute(select(ProviderORM).where(
+            ProviderORM.tenant_id == tenant_id, ProviderORM.name == name
+        ))
     ).scalar_one_or_none()
     encrypted = encrypt_secret(api_key, settings.SECRET_KEY)
 
     if row is None:
         row = ProviderORM(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             name=name,
             provider_type=provider_type.strip().lower() or "custom",
             api_key=encrypted,
@@ -104,7 +115,9 @@ async def upsert_provider(
     return _row_to_dict(row)
 
 
-async def delete_provider(session: AsyncSession, name: str) -> bool:
-    result = await session.execute(delete(ProviderORM).where(ProviderORM.name == name))
+async def delete_provider(session: AsyncSession, name: str, *, tenant_id: str) -> bool:
+    result = await session.execute(delete(ProviderORM).where(
+        ProviderORM.tenant_id == tenant_id, ProviderORM.name == name
+    ))
     await session.commit()
     return result.rowcount > 0

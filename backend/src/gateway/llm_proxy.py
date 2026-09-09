@@ -2,17 +2,12 @@
 
 Developers protect any AI framework (LangChain, CrewAI, Vercel AI SDK, …) by
 pointing their client's ``base_url`` at ``http://localhost:8000/v1/proxy``.
-Every prompt is scored by the full containment engine before it reaches the
-upstream provider:
+Streaming SSE is scanned with a holdback window; a secret split across chunks
+receives the same BLOCK verdict as a non-streaming completion. QUARANTINE on
+OpenAI, Anthropic, and streaming paths withholds the output into a digest-only
+operator approval. MCP stdio containment is provided by the separate
+``artsa-mcp-stdio`` process wrapper; Streamable HTTP/SSE MCP remains unbuilt.
 
-* SAFE      -> forwarded untouched (sub-millisecond fast pass)
-* SUSPICIOUS-> sanitized (safety warning appended) or forwarded per policy
-* BREACHED  -> blocked with an OpenAI/Anthropic-style error
-
-Both streaming (SSE) and non-streaming chat completions are supported, along
-with Anthropic ``/v1/messages`` payloads which are translated to the upstream
-OpenAI-compatible protocol (or forwarded natively when the upstream provider
-is Anthropic itself).
 """
 
 from __future__ import annotations
@@ -85,21 +80,26 @@ class LLMProxy:
         then ``X-ARTSA-Forward-To``, then ``ARTSA_PROXY_TARGET_BASE_URL``,
         then the provider's default.
         """
-        from src.services.provider_registry import provider_registry
-
         provider = (provider or settings.ARTSA_PROXY_DEFAULT_PROVIDER or "openai").lower()
-        stored = provider_registry.get(provider)
-        provider_type = stored.provider_type if stored else provider
-        api_key = (
-            (stored.api_key if stored else None)
-            or settings.ARTSA_PROXY_API_KEY
-            or settings.provider_key(provider_type)
-        )
+        provider_type = provider
+        selected_base: str | None = None
+        try:
+            # Compatibility for direct callers.  This is still an on-demand,
+            # tenant-bound DB lookup; it never populates a process-wide cache.
+            from src.services.provider_resolver import provider_resolver
+
+            resolved = provider_resolver.resolve_sync(
+                tenant_id=settings.ARTSA_TENANT_ID, provider=provider
+            )
+            provider_type, api_key = resolved.provider_type, resolved.api_key
+            selected_base = resolved.base_url
+        except Exception:
+            api_key = settings.ARTSA_PROXY_API_KEY or settings.provider_key(provider_type)
 
         if forward_to and forward_to.strip():
             base_url = forward_to.strip().rstrip("/")
-        elif stored and stored.base_url:
-            base_url = stored.base_url.rstrip("/")
+        elif selected_base:
+            base_url = selected_base.rstrip("/")
         elif settings.ARTSA_PROXY_TARGET_BASE_URL:
             base_url = settings.ARTSA_PROXY_TARGET_BASE_URL.rstrip("/")
         else:
@@ -117,17 +117,61 @@ class LLMProxy:
             extra_headers["anthropic-version"] = "2023-06-01"
         return base_url, api_key, extra_headers
 
+    async def resolve_target_for_tenant(
+        self, provider: str, *, tenant_id: str, model: str | None, forward_to: str | None = None,
+        session: Any | None = None,
+    ) -> tuple[str, str | None, dict[str, str], str]:
+        """Resolve a proxy upstream without consulting a shared key cache."""
+        from src.services.provider_resolver import provider_resolver
+        try:
+            if session is not None:
+                resolved = await provider_resolver.resolve_async(
+                    session, tenant_id=tenant_id, provider=provider, model=model
+                )
+            else:
+                from src.data.db import get_session_factory
+                async with get_session_factory()() as db_session:
+                    resolved = await provider_resolver.resolve_async(
+                        db_session, tenant_id=tenant_id, provider=provider, model=model
+                    )
+        except Exception:
+            # Test transports intentionally exercise containment without a
+            # credential store.  This never manufactures a key and is not
+            # reachable in production.
+            if settings.ENVIRONMENT != "testing":
+                raise
+            from src.gateway.provider_catalog import catalog_base_url, catalog_default_model
+            # Preserve the normal proxy target precedence in the deterministic
+            # test-only resolver path too.  Otherwise an env-configured local
+            # target is silently replaced by a public catalog URL, bypassing
+            # the SSRF guard's intended enforcement point.
+            base = forward_to or settings.ARTSA_PROXY_TARGET_BASE_URL or catalog_base_url(provider)
+            if not base:
+                raise
+            return base.rstrip("/"), None, {}, model or catalog_default_model(provider) or "default"
+        base_url = (forward_to or resolved.base_url or "").rstrip("/")
+        if not base_url:
+            raise ValueError("provider_not_configured")
+        headers: dict[str, str] = {}
+        if resolved.provider_type == "anthropic" and resolved.api_key:
+            headers["x-api-key"] = resolved.api_key
+            headers["anthropic-version"] = "2023-06-01"
+        return base_url, resolved.api_key, headers, resolved.model
+
     def resolve_model(self, provider: str, model: str) -> str:
         """Fill a missing/placeholder model from the registered provider or catalog."""
         if model and model != "unknown":
             return model
+        try:
+            from src.services.provider_resolver import provider_resolver
+            resolved = provider_resolver.resolve_sync(
+                tenant_id=settings.ARTSA_TENANT_ID, provider=provider
+            )
+            return resolved.model
+        except Exception:
+            logger.debug("Synchronous provider model resolution unavailable")
         from src.gateway.provider_catalog import catalog_default_model
-        from src.services.provider_registry import provider_registry
-
-        stored = provider_registry.get(provider)
-        if stored and stored.default_model:
-            return stored.default_model
-        provider_type = stored.provider_type if stored else provider
+        provider_type = provider
         default = catalog_default_model(provider_type)
         return default or model
 
@@ -405,4 +449,3 @@ def get_llm_proxy() -> LLMProxy:
     if _proxy is None:
         _proxy = LLMProxy()
     return _proxy
-

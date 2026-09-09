@@ -21,7 +21,7 @@ const ROWS: ComparisonRow[] = [
     artsa: "partial",
     peer: "partial",
     hiddenlayer: "partial",
-    note: "Designed action enum; in-session blocking not built",
+    note: "LLM proxy, ingest gate, and MCP stdio wrapper live; MCP HTTP/SSE remains unbuilt",
   },
   {
     feature: "Red-team campaign console",

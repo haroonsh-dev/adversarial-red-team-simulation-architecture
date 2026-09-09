@@ -1,11 +1,8 @@
-"""Provider catalog + in-memory credential registry + LLM factory registry.
+"""Provider catalog + LLM factory registry.
 
-The catalog lists every API ARTSA can talk to out of the box (the "all
-options" surface shown to users). The registry is a memory cache of
-user-registered providers (persisted in the ``providers`` table with keys
-encrypted); the containment proxy and test endpoints resolve credentials
-through it so a user can add any API key / base URL / model at runtime
-without touching environment variables.
+The catalog lists every API ARTSA can talk to out of the box. Runtime
+credentials are resolved by :mod:`src.services.provider_resolver`, which is
+tenant-scoped and deliberately does not cache plaintext secrets.
 
 This module is also the single home for the dynamic LLM *factory* registry
 (``register_provider`` / ``get_available_providers`` / ``create_llm_instance``),
@@ -41,28 +38,18 @@ class ProviderCredential:
 
 
 class ProviderRegistry:
-    """In-memory cache of user-registered providers (read by the proxy)."""
+    """Deprecated compatibility facade.
+
+    It intentionally retains no credentials.  New code must use
+    ``ProviderResolver`` at the execution boundary.
+    """
 
     def __init__(self) -> None:
         self._providers: dict[str, ProviderCredential] = {}
 
     def load(self, rows: list[dict[str, Any]]) -> None:
-        """Replace the cache from persisted rows (decrypted)."""
+        """Compatibility no-op; never retain decrypted provider rows."""
         self._providers = {}
-        for row in rows:
-            if not row.get("enabled", True):
-                continue
-            api_key = row.get("api_key") or ""
-            if not api_key:
-                continue
-            self._providers[row["name"]] = ProviderCredential(
-                name=row["name"],
-                provider_type=row.get("provider_type") or "custom",
-                api_key=api_key,
-                base_url=row.get("base_url"),
-                default_model=row.get("default_model"),
-            )
-        logger.debug("Provider registry loaded %d providers", len(self._providers))
 
     def get(self, name: str | None) -> ProviderCredential | None:
         if not name:
@@ -73,16 +60,8 @@ class ProviderRegistry:
         return sorted(self._providers.keys())
 
     async def refresh(self) -> None:
-        """Reload the cache from the database."""
-        try:
-            from src.data.db import get_session_factory
-            from src.data.provider_store import list_providers
-
-            async with get_session_factory()() as session:
-                rows = await list_providers(session, include_key=True)
-            self.load(rows)
-        except Exception as exc:  # pragma: no cover - registry must not crash startup
-            logger.warning("Provider registry refresh skipped: %s", exc)
+        """Compatibility no-op. Credentials are loaded lazily per tenant."""
+        self.load([])
 
 
 provider_registry = ProviderRegistry()
@@ -178,7 +157,16 @@ def create_llm_instance(
             or default_url
             or "https://api.openai.com/v1"
         )
-        resolved_key = api_key or settings.provider_key(prov_clean) or "mock-key"
+        resolved_key = api_key or (
+            settings.provider_key(prov_clean) if settings.ARTSA_ALLOW_ENV_PROVIDER_FALLBACK else None
+        )
+        if not resolved_key and prov_clean not in {"ollama", "local", "vllm", "lmstudio", "jan"}:
+            raise ValueError("provider_not_configured")
+        # OpenAI-compatible local servers often disable authentication, but
+        # the client library requires a non-empty value.  This sentinel is
+        # never used for a remote provider and is not a credential fallback.
+        if not resolved_key:
+            resolved_key = "local-no-auth"
         resolved_model = model if model not in ("gpt-4o", "gpt-5.6-terra", "", "default") else default_m
 
         return _chat_openai(
@@ -195,7 +183,7 @@ def create_llm_instance(
     env_url = os.environ.get(f"{prov_clean.upper()}_BASE_URL")
     env_key = os.environ.get(f"{prov_clean.upper()}_API_KEY")
     resolved_url = base_url or env_url
-    resolved_key = api_key or env_key or "mock-key"
+    resolved_key = api_key or (env_key if settings.ARTSA_ALLOW_ENV_PROVIDER_FALLBACK else None)
 
     if resolved_url:
         logger.info(
@@ -214,7 +202,11 @@ def create_llm_instance(
 
     # 4. Standard OpenAI Default
     logger.info("Initializing OpenAI provider for '%s'", provider)
-    resolved_key = api_key or os.environ.get("OPENAI_API_KEY") or "mock-key-for-testing"
+    resolved_key = api_key or (
+        os.environ.get("OPENAI_API_KEY") if settings.ARTSA_ALLOW_ENV_PROVIDER_FALLBACK else None
+    )
+    if not resolved_key:
+        raise ValueError("provider_not_configured")
     return _chat_openai(
         model=model,
         temperature=temperature,

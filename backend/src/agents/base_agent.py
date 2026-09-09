@@ -32,6 +32,8 @@ class BaseAgent(ABC):
         max_retries: int = 3,
         api_key: str | None = None,
         base_url: str | None = None,
+        tenant_id: str | None = None,
+        provider_ref: str | None = None,
     ) -> None:
         self.name = name
         self.provider = provider.lower()
@@ -39,25 +41,42 @@ class BaseAgent(ABC):
         self.temperature = temperature
         self.system_prompt = system_prompt
         self.max_retries = max_retries
-        self.api_key = api_key
         self.base_url = base_url
-        self.llm = self._init_llm()
+        self.tenant_id = tenant_id
+        self.provider_ref = provider_ref
+        # api_key is intentionally consumed during construction and never
+        # retained on the agent object.
+        self.llm = self._init_llm(api_key)
 
         self.total_tokens_used = 0
         self.prompt_tokens_used = 0
         self.completion_tokens_used = 0
 
-    def _init_llm(self) -> BaseChatModel:
+    def _init_llm(self, explicit_api_key: str | None = None) -> BaseChatModel:
         """Initialize the LangChain LLM based on provider using the dynamic provider registry."""
         from src.services.provider_registry import create_llm_instance
 
+        api_key = explicit_api_key
+        model = self.model
+        base_url = self.base_url
+        if self.provider_ref:
+            if not self.tenant_id:
+                raise ValueError("tenant_context_required")
+            from src.services.provider_resolver import provider_resolver
+
+            resolved = provider_resolver.resolve_sync(
+                tenant_id=self.tenant_id, provider=self.provider_ref, model=model, base_url=base_url,
+                api_key=explicit_api_key, provider_ref=self.provider_ref,
+            )
+            api_key, model, base_url = resolved.api_key, resolved.model, resolved.base_url
+            self.provider, self.model, self.base_url = resolved.provider_type, model, base_url
         return create_llm_instance(
             provider=self.provider,
-            model=self.model,
+            model=model,
             temperature=self.temperature,
             max_retries=self.max_retries,
-            api_key=self.api_key,
-            base_url=self.base_url,
+            api_key=api_key,
+            base_url=base_url,
         )
 
     def _build_messages(

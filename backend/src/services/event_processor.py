@@ -42,6 +42,11 @@ class EventProcessor:
         use_fast = event.tool_name in _FAST_PATH_TOOLS if fast is None else fast
         if use_fast:
             return self.monitor.process_event_fast(event)
+        if event.post_exec_redacted:
+            # SDK tool results are transient sensitive material. Keep their
+            # detection in-process; do not route them through embeddings or the
+            # optional LLM judge before persistence redaction.
+            return self.monitor.process_post_exec(event)
 
         risk, verdict, sec_events = self.monitor.process_event(event)
         # WS-2.3: optional LLM confirmation of borderline verdicts (no-op when

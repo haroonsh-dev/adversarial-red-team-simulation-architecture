@@ -52,6 +52,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
+[project.scripts]
+artsa-mcp-stdio = "src.mcp.stdio_wrapper:main"
+
 [project.optional-dependencies]
 pinecone = [
     "pinecone-client>=5.0.0",

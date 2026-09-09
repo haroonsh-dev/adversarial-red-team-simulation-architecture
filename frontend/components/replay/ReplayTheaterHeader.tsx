@@ -94,6 +94,11 @@ export function ReplayTheaterHeader({
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {selectedSession?.agent_id ?? "Pick a session"}
             </h1>
+            {selectedSession?.circuit_breaker_open ? (
+              <p className="mt-1 text-sm font-medium text-destructive">
+                Circuit breaker open — cascading failures contained.
+              </p>
+            ) : null}
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               Scrub through each action — see when risk spiked and what ARTSA did.
             </p>

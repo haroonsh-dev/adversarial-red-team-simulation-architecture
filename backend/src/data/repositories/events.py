@@ -33,6 +33,9 @@ class EventRepository(BaseRepository[ToolCallEventORM]):
             timestamp=row.timestamp,
             trace_id=row.trace_id,
             response=dict(row.response) if row.response else None,
+            post_exec_redacted=bool(row.post_exec_redacted),
+            response_sha256=row.response_sha256,
+            response_findings=list(row.response_findings or []),
             latency_ms=row.latency_ms,
         )
 
@@ -46,6 +49,9 @@ class EventRepository(BaseRepository[ToolCallEventORM]):
             timestamp=event.timestamp,
             trace_id=event.trace_id,
             response=event.response,
+            post_exec_redacted=event.post_exec_redacted,
+            response_sha256=event.response_sha256,
+            response_findings=event.response_findings,
             latency_ms=event.latency_ms,
             tenant_id=tenant_id,
         )

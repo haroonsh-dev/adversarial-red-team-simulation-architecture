@@ -115,7 +115,9 @@ class MCPProxyInterceptor:
         # Shared containment engine (WS-2.5 parity with the ingest path).
         self._engine = ContainmentEngine()
 
-    def inspect_request(self, req: MCPJsonRpcRequest) -> MCPInspectionResult:
+    def inspect_request(
+        self, req: MCPJsonRpcRequest, *, session_id: uuid.UUID | None = None
+    ) -> MCPInspectionResult:
         """Inspect MCP JSON-RPC for disallowed methods, tools, or injection patterns."""
         detected: list[str] = []
         threat_score = 0.0
@@ -155,7 +157,7 @@ class MCPProxyInterceptor:
         engine_events: list[str] = []
         if req.method.startswith("tools/"):
             event = ToolCallEvent(
-                session_id=uuid.uuid4(),
+                session_id=session_id or uuid.uuid4(),
                 agent_id="mcp-proxy",
                 tool_name="mcp_call",
                 arguments=params,

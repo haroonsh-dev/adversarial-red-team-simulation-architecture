@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from threading import RLock
+from typing import ClassVar
 
 from src.containment.detectors.base import BaseDetector
 from src.core.config import settings
@@ -199,12 +201,30 @@ class SemanticDetector(BaseDetector):
     """
 
     SIMILARITY_THRESHOLD = 0.72
+    # The reference library is static and identical for every detector
+    # instance.  Ablation creates one engine per detector variant, so without
+    # this cache the same phrases are embedded once per engine.  Keep only
+    # immutable vectors and key by the effective model/dimension so changing
+    # embedding configuration cannot reuse incompatible values.
+    _REFERENCE_CACHE_MAX = 4
+    _reference_cache: ClassVar[dict[tuple[str, int], tuple[tuple[float, ...], ...]]] = {}
+    _reference_cache_lock: ClassVar[RLock] = RLock()
 
     def __init__(self) -> None:
         super().__init__(name="SemanticDetector")
         model = settings.resolve_embedding_model()
         self._embedder = HighAccuracy1024EmbeddingFunction(model_name=model)
-        self._malicious_embeddings = [self._embedder.embed(phrase) for phrase in MALICIOUS_PHRASES]
+        cache_key = (self._embedder.model_name, self._embedder.dimensions)
+        with self._reference_cache_lock:
+            cached = self._reference_cache.get(cache_key)
+            if cached is None:
+                cached = tuple(
+                    tuple(self._embedder.embed(phrase)) for phrase in MALICIOUS_PHRASES
+                )
+                if len(self._reference_cache) >= self._REFERENCE_CACHE_MAX:
+                    self._reference_cache.pop(next(iter(self._reference_cache)))
+                self._reference_cache[cache_key] = cached
+        self._malicious_embeddings = cached
 
     @staticmethod
     def _arg_text(event: ToolCallEvent) -> str:
@@ -248,8 +268,7 @@ class SemanticDetector(BaseDetector):
                 max_similarity = 0.0
                 for ref in self._malicious_embeddings:
                     sim = cosine_similarity(query_embedding, ref)
-                    if sim > max_similarity:
-                        max_similarity = sim
+                    max_similarity = max(max_similarity, sim)
                     if max_similarity >= 0.95:
                         break
                 if max_similarity > best_similarity:

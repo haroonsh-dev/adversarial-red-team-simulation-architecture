@@ -39,7 +39,9 @@ def wrap_langgraph_tool(
                 client.guard_tool_call(sid, agent_id, name, arguments)
             except ArtsaBlockedError:
                 raise
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+            client.guard_tool_result(sid, agent_id, name, arguments, result)
+            return result
 
         # Preserve LangChain tool metadata if present
         for attr in ("name", "description", "args_schema", "return_direct"):

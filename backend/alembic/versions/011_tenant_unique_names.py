@@ -12,7 +12,7 @@ constraint drops tolerate an already-absent constraint so re-runs are safe.
 from collections.abc import Sequence
 
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 revision: str = "011_tenant_unique_names"
 down_revision: str | None = "010_tenant_users"
@@ -23,6 +23,30 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     bind = op.get_bind()
     existing = set(inspect(bind).get_table_names())
+
+    # SQLite cannot ALTER constraints.  The runtime ORM already declares the
+    # intended composite constraints for newly-created tables; old SQLite
+    # databases get a composite unique index without blocking migrations.
+    if bind.dialect.name == "sqlite":
+        if "custom_integrations" in existing:
+            names = {row[1] for row in bind.execute(text("PRAGMA index_list(custom_integrations)"))}
+            if "uq_custom_integrations_tenant_name" not in names:
+                op.create_index(
+                    "uq_custom_integrations_tenant_name",
+                    "custom_integrations",
+                    ["tenant_id", "name"],
+                    unique=True,
+                )
+        if "agent_baselines" in existing:
+            names = {row[1] for row in bind.execute(text("PRAGMA index_list(agent_baselines)"))}
+            if "uq_agent_baselines_tenant_agent" not in names:
+                op.create_index(
+                    "uq_agent_baselines_tenant_agent",
+                    "agent_baselines",
+                    ["tenant_id", "agent_id"],
+                    unique=True,
+                )
+        return
 
     # ── custom_integrations: global name-unique → per-tenant unique ─────────
     if "custom_integrations" in existing:

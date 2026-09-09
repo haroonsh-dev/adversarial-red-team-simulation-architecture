@@ -6,17 +6,16 @@ test.describe("ARTSA frontend pages", () => {
     await seedAuth(page);
   });
 
-  test("campaigns page renders scans list", async ({ page }) => {
-    await page.goto("/campaigns");
-    await expect(page.getByRole("heading", { name: /^scans$/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByRole("button", { name: /new scan/i }).first()).toBeVisible();
+  test("campaigns page renders current red team controls", async ({ page }) => {
+    await page.goto("/red-team/campaigns");
+    await expect(page.getByRole("button", { name: /^quick scan$/i }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /^attack lab$/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /^builder$/i }).first()).toBeVisible();
   });
 
-  test("new scan opens as modal from scans", async ({ page }) => {
-    await page.goto("/campaigns");
-    await page.getByRole("button", { name: /new scan/i }).first().click();
+  test("quick scan opens as modal from campaigns", async ({ page }) => {
+    await page.goto("/red-team/campaigns");
+    await page.getByRole("button", { name: /^quick scan$/i }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: /start red team/i })).toBeVisible();
   });
@@ -34,16 +33,14 @@ test.describe("ARTSA frontend pages", () => {
       page.getByRole("heading", { name: /^reports$/i }).first()
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole("heading", { name: /attack tests/i })
+      page.getByRole("heading", { name: "Attack tests", exact: true })
     ).toBeVisible();
   });
 
   test("library page renders template management", async ({ page }) => {
-    await page.goto("/library");
-    await expect(
-      page.getByRole("heading", { name: /attack library/i }).first()
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: /new template/i })).toBeVisible();
+    await page.goto("/red-team/library");
+    await expect(page.getByText(/templates from artsa/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /open attack lab/i })).toBeVisible();
   });
 
   test("landing page renders at root", async ({ page }) => {
@@ -62,13 +59,13 @@ test.describe("ARTSA frontend pages", () => {
     await page.goto("/wargame");
     await expect(page).toHaveURL(/\/campaigns/);
 
-    // /playground → /sandbox
+    // /playground → /sandbox → /red-team/lab
     await page.goto("/playground");
-    await expect(page).toHaveURL(/\/sandbox/);
+    await expect(page).toHaveURL(/\/red-team\/lab/);
 
-    // /attack-library → /library
+    // /attack-library → /library → /red-team/library
     await page.goto("/attack-library");
-    await expect(page).toHaveURL(/\/library/);
+    await expect(page).toHaveURL(/\/red-team\/library/);
 
     // /policies → /admin/policies
     await page.goto("/policies");
@@ -113,15 +110,15 @@ test.describe("ARTSA frontend pages", () => {
   test("guard capabilities reference page renders", async ({ page }) => {
     await page.goto("/guides/guard-capabilities");
     await expect(
-      page.getByRole("heading", { name: /guard capabilities/i }).first()
+      page.getByRole("heading", { name: /what we stop/i }).first()
     ).toBeVisible({ timeout: 15_000 });
   });
 
   test("reports page shows readiness snapshot", async ({ page }) => {
     await page.goto("/reports");
     await expect(
-      page.getByRole("heading", { name: /assessment reports/i }).first()
+      page.getByRole("heading", { name: "Reports", exact: true }).first()
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/go-live readiness/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Attack tests", exact: true })).toBeVisible();
   });
 });

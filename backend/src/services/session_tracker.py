@@ -77,12 +77,14 @@ class SessionTracker:
             session.containment_breaches += 1
         elif action_u == "QUARANTINE":
             session.status = "QUARANTINED"
+        elif action_u == "PENDING_APPROVAL":
+            session.status = "PENDING_APPROVAL"
         elif action_u == "THROTTLE":
             # Soft control — keep ACTIVE but mark elevated risk floor
             session.max_risk_score = max(session.max_risk_score, 50.0)
         elif action_u == "RELEASE":
             # Operator reviewed the incident: resume normal operation.
-            if session.status in ("QUARANTINED", "BREACHED"):
+            if session.status in ("QUARANTINED", "BREACHED", "PENDING_APPROVAL"):
                 session.status = "ACTIVE"
                 session.ended_at = None
         elif action_u == "CLOSE":
@@ -92,4 +94,4 @@ class SessionTracker:
 
     def is_contained(self, session_id: uuid.UUID) -> bool:
         session = self.get_session(session_id)
-        return bool(session and session.status in ("BREACHED", "QUARANTINED", "CLOSED"))
+        return bool(session and session.status in ("BREACHED", "QUARANTINED", "PENDING_APPROVAL", "CLOSED"))

@@ -29,6 +29,16 @@ interface TimelineEntry {
   evaluation?: Record<string, unknown> | null;
 }
 
+interface ApprovalRequest {
+  id: string;
+  session_id: string;
+  tool_name: string;
+  operation_sha256: string;
+  findings: Array<{ detector?: string; category?: string }>;
+  status: string;
+  expires_at: string;
+}
+
 type SessionAction = "KILL" | "QUARANTINE";
 type EventFilter = "all" | "breached" | "high";
 
@@ -50,6 +60,8 @@ export default function RoundReplayPage() {
   const [playing, setPlaying] = useState(false);
   const [eventQuery, setEventQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);
   const entry = timeline[selectedIndex];
@@ -104,6 +116,27 @@ export default function RoundReplayPage() {
       setLoadingSessions(false);
     });
   }, [sessionParam]);
+
+  const refreshApprovals = useCallback(async () => {
+    const data = await fetchFromBackend<ApprovalRequest[]>("/api/v1/approvals", { silent: true });
+    if (Array.isArray(data)) setApprovals(data.filter((row) => row.status === "PENDING"));
+  }, []);
+
+  useEffect(() => {
+    void refreshApprovals();
+  }, [refreshApprovals]);
+
+  const decideApproval = async (id: string, decision: "APPROVE" | "DENY") => {
+    setApprovalLoading(id);
+    const result = await fetchFromBackend(`/api/v1/approvals/${id}/decision`, {
+      method: "POST", body: JSON.stringify({ decision }),
+    });
+    if (result) {
+      toast(decision === "APPROVE" ? "Retry authorized once" : "Approval denied", { variant: "success" });
+      await refreshApprovals();
+    }
+    setApprovalLoading(null);
+  };
 
   useEffect(() => {
     if (sessionParam) setSelectedSessionId(sessionParam);
@@ -262,6 +295,33 @@ export default function RoundReplayPage() {
         onQuarantine={() => void runSessionAction("QUARANTINE")}
         onKill={() => void runSessionAction("KILL")}
       />
+
+      {approvals.length > 0 && (
+        <section className="replay-theater-panel p-4" aria-label="Pending approvals">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Pending operator approvals</h2>
+              <p className="text-xs text-muted-foreground">Only digest and detector metadata are retained.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => void refreshApprovals()}>Refresh</Button>
+          </div>
+          <div className="space-y-2">
+            {approvals.map((approval) => (
+              <div key={approval.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-xs">
+                <div className="min-w-0">
+                  <p className="font-medium">{approval.tool_name}</p>
+                  <p className="truncate text-muted-foreground">SHA-256 {approval.operation_sha256}</p>
+                  <p className="text-muted-foreground">{approval.findings.map((f) => f.category ?? f.detector).filter(Boolean).join(", ") || "Policy review"} · expires {new Date(approval.expires_at).toLocaleString()}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={approvalLoading === approval.id} onClick={() => void decideApproval(approval.id, "DENY")}>Deny</Button>
+                  <Button size="sm" disabled={approvalLoading === approval.id} onClick={() => void decideApproval(approval.id, "APPROVE")}>Approve</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="replay-theater-panel">
         {loadingTimeline ? (

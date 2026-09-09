@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional, Sequence, Self
 
 import httpx
 
-from artsa.client import ArtsaQuotaError
+from artsa.client import ArtsaQuotaError, _tool_result_payload
 
 logger = logging.getLogger("artsa.sdk.async")
 
@@ -206,6 +206,7 @@ class AsyncArtsaClient:
         *,
         event_id: Optional[str] = None,
         trace_id: Optional[str] = None,
+        approval_retry_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send a tool call to ARTSA and return the ingest + evaluation payload (async)."""
         payload = {
@@ -216,6 +217,8 @@ class AsyncArtsaClient:
             "arguments": arguments,
             "trace_id": trace_id or str(uuid.uuid4()),
         }
+        if approval_retry_token:
+            payload["approval_retry_token"] = approval_retry_token
         return await self._post("/api/v1/ingest", payload)
 
     def is_blocked(self, result: Dict[str, Any]) -> bool:
@@ -241,6 +244,37 @@ class AsyncArtsaClient:
         if enforce and self.is_blocked(result):
             raise ArtsaBlockedError(tool_name, result)
         return result
+
+    async def guard_tool_result(
+        self,
+        session_id: str,
+        agent_id: str,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        result: Any,
+        *,
+        enforce: bool = True,
+        event_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        approval_retry_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Scan a completed tool return and withhold it on containment."""
+        payload = {
+            "id": event_id or str(uuid.uuid4()),
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "arguments": arguments,
+            "response": _tool_result_payload(result),
+            "post_exec_redacted": True,
+            "trace_id": trace_id or str(uuid.uuid4()),
+        }
+        if approval_retry_token:
+            payload["approval_retry_token"] = approval_retry_token
+        response = await self._post("/api/v1/ingest", payload)
+        if enforce and self.is_blocked(response):
+            raise ArtsaBlockedError(tool_name, response)
+        return response
 
     async def enforce_session(self, session_id: str, action: str = "KILL") -> Dict[str, Any]:
         """Manually contain a session via `/api/v1/sessions/{id}/action` (async)."""

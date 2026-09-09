@@ -31,13 +31,22 @@ export function CommandCenterAttackTimeline({
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
+    const container = scrollerRef.current;
     const activeCard = cardRefs.current[currentRoundIdx];
-    if (activeCard && typeof activeCard.scrollIntoView === "function") {
-      activeCard.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
+    if (container && activeCard) {
+      const cardLeft = activeCard.offsetLeft;
+      const cardWidth = activeCard.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      const targetScrollLeft = cardLeft - containerWidth / 2 + cardWidth / 2;
+
+      if (typeof container.scrollTo === "function") {
+        container.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior: "smooth",
+        });
+      } else {
+        container.scrollLeft = Math.max(0, targetScrollLeft);
+      }
     }
   }, [currentRoundIdx]);
 
@@ -139,7 +148,7 @@ export function CommandCenterAttackTimeline({
               type="button"
               onClick={() => onSelectStep?.(step, idx)}
               className={cn(
-                "group relative flex min-w-[200px] flex-col justify-between rounded-lg border p-2.5 text-left font-mono transition-all cursor-pointer select-none",
+                "group relative flex min-w-[200px] flex-col justify-start rounded-lg border p-2.5 text-left font-mono transition-all cursor-pointer select-none",
                 isCurrent
                   ? "border-sky-500/80 bg-sky-500/10 ring-1 ring-sky-400/50 shadow-md"
                   : isPast
@@ -169,7 +178,7 @@ export function CommandCenterAttackTimeline({
               </p>
 
               {/* Detector & Action Taken */}
-              <div className="mt-2.5 flex flex-col gap-1 border-t border-border/50 pt-1.5 text-[9px]">
+              <div className="mt-auto pt-2 flex flex-col gap-1 border-t border-border/50 text-[9px]">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-muted-foreground uppercase text-[8px] tracking-wider">
                     DETECTOR

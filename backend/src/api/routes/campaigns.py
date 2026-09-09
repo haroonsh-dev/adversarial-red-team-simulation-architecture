@@ -237,7 +237,7 @@ def _launch_baseline(
         request_json=req.model_dump(),
         tenant_id=tenant_id,
     )
-    background_tasks.add_task(execute_campaign_background, campaign_id, req)
+    background_tasks.add_task(execute_campaign_background, campaign_id, req, tenant_id)
     return {
         "phase": 3,
         "campaign_id": campaign_id,
@@ -280,11 +280,7 @@ def _default_baseline_target() -> tuple[str, str]:
     )
 
 
-def _resolve_provider_api_key(provider: str) -> str | None:
-    return settings.provider_key(provider)
-
-
-def execute_campaign_background(campaign_id: str, req: RunCampaignRequest) -> None:
+def execute_campaign_background(campaign_id: str, req: RunCampaignRequest, tenant_id: str) -> None:
     job_store = campaign_job_store
 
     def on_round_complete(completed: int, total: int, result=None) -> None:
@@ -298,10 +294,10 @@ def execute_campaign_background(campaign_id: str, req: RunCampaignRequest) -> No
                 logger.exception("Live monitor emit failed for %s", campaign_id)
 
     try:
-        from src.core.campaign_exec import secret_ref_for_provider
         from src.models import AttackProfile, CampaignConfig, TargetConfig
         from src.orchestrator.campaign_manager import CampaignManager
         from src.services.campaign_live_bus import default_agents, emit_campaign_status
+        from src.services.provider_resolver import provider_resolver
 
         emit_campaign_status(
             campaign_id,
@@ -313,23 +309,20 @@ def execute_campaign_background(campaign_id: str, req: RunCampaignRequest) -> No
         with config_path.open(encoding="utf-8") as f:
             app_config = yaml.safe_load(f)
 
-        api_key = _resolve_provider_api_key(req.provider)
-        if not api_key and req.provider not in ("ollama", "local", "deterministic", "fake", "test"):
-            raise ValueError(
-                f"No API key configured for provider '{req.provider}'. "
-                "Add the key in .env or use Providers page."
-            )
+        resolved = provider_resolver.resolve_sync(
+            tenant_id=tenant_id, provider=req.provider, model=req.model, base_url=req.base_url
+        )
 
         worker_mode = settings.ARTSA_HMAC_RECEIVER_WORKERS
         target_cfg = TargetConfig(
             provider=req.provider,
-            model=req.model,
-            api_key=None if worker_mode else api_key,
-            base_url=req.base_url,
+            model=resolved.model,
+            base_url=resolved.base_url,
             system_prompt=req.system_prompt or "",
             target_id=req.target_id,
             target_version=req.target_version,
-            secret_ref=secret_ref_for_provider(req.provider),
+            tenant_id=tenant_id,
+            provider_ref=resolved.provider_id,
         )
         categories = _resolve_attack_categories(req.attack_profile, req.categories)
         mut_on, mut_cap = _mutation_settings(
@@ -480,7 +473,7 @@ async def start_campaign(
         request_json=req.model_dump(),
         tenant_id=tenant_id,
     )
-    background_tasks.add_task(execute_campaign_background, campaign_id, req)
+    background_tasks.add_task(execute_campaign_background, campaign_id, req, tenant_id)
     return {
         "campaign_id": campaign_id,
         "message": f"Wargame campaign '{req.name}' started successfully.",

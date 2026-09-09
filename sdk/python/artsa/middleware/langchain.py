@@ -6,7 +6,12 @@ from artsa.middleware.base import BaseMiddleware
 
 
 class LangChainContainmentCallback(BaseMiddleware):
-    """LangChain callback handler intercepting tool execution for containment checks."""
+    """Pre-execution LangChain observability callback.
+
+    Callbacks cannot reliably prevent LangChain from consuming a completed
+    result. Use ``wrap_langgraph_tool`` or ``guard_langgraph_tools`` for the
+    enforceable pre- and post-execution gate.
+    """
 
     def __init__(self, client: ArtsaClient, session_id: str, agent_id: str) -> None:
         super().__init__(client)

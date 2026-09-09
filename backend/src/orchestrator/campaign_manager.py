@@ -46,6 +46,8 @@ class CampaignManager:
         self,
         config: CampaignConfig,
         app_config: dict[str, Any],
+        *,
+        transient_target_api_key: str | None = None,
     ) -> None:
         self.config = config
         self.app_config = app_config
@@ -72,7 +74,7 @@ class CampaignManager:
             self.target_agent = None
             self.judge = None
         else:
-            self.target_agent = TargetAgent(config.target)
+            self.target_agent = TargetAgent(config.target, explicit_api_key=transient_target_api_key)
             self.judge = JudgeAgent(config=app_config["artsa"]["judge"])
 
         try:

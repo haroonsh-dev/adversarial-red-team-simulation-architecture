@@ -27,6 +27,10 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "integration: tests that need a live Redis (started via Docker when needed)",
     )
+    config.addinivalue_line(
+        "markers",
+        "external: tests that make a real provider network request",
+    )
 
 
 def unwrap_response(resp) -> dict[str, Any]:

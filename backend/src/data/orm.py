@@ -65,8 +65,14 @@ class ProviderORM(Base):
 
     __tablename__ = "providers"
 
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_providers_tenant_name"),
+    )
+
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # A provider name is a tenant-local alias, never a global credential handle.
+    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False, default="default_org", index=True)
+    name: Mapped[str] = mapped_column(String(64), index=True)
     provider_type: Mapped[str] = mapped_column(String(64), default="custom")
     api_key: Mapped[str] = mapped_column(Text)
     base_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -191,8 +197,31 @@ class ToolCallEventORM(Base):
     )
     trace_id: Mapped[str] = mapped_column(String(255))
     response: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    post_exec_redacted: Mapped[bool] = mapped_column(Boolean, default=False)
+    response_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    response_findings: Mapped[list[Any]] = mapped_column(JSON, default=list)
     latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     tenant_id: Mapped[str] = mapped_column(String(255), default="default_tenant")
+
+
+class ApprovalRequestORM(Base):
+    """Digest-only, tenant-scoped operator approval request."""
+
+    __tablename__ = "approval_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(255), index=True)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    operation_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    tool_name: Mapped[str] = mapped_column(String(255))
+    action: Mapped[str] = mapped_column(String(32), default="QUARANTINE")
+    findings: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    requester: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", index=True)
+    approver: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    decision_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class SessionORM(Base):
@@ -209,6 +238,22 @@ class SessionORM(Base):
     tool_call_count: Mapped[int] = mapped_column(Integer, default=0)
     max_risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     containment_breaches: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class SessionCircuitBreakerORM(Base):
+    """Tenant-isolated, digest-free ASI08 breaker state."""
+
+    __tablename__ = "session_circuit_breakers"
+    __table_args__ = (UniqueConstraint("tenant_id", "session_id", name="uq_session_breaker_tenant_session"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str] = mapped_column(String(255), index=True)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    block_timestamps: Mapped[list[str]] = mapped_column(JSON, default=list)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
 
 class EventEvaluationORM(Base):
@@ -365,6 +410,22 @@ class HmacHandoffAuditORM(Base):
     replay_detected: Mapped[bool] = mapped_column(Boolean, default=False)
     containment_result: Mapped[str | None] = mapped_column(String(32), nullable=True)
     tenant_id: Mapped[str] = mapped_column(String(255), default="default_org", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
+class RuntimeEnforcementAuditORM(Base):
+    """Digest-only runtime output/tool-call enforcement evidence."""
+
+    __tablename__ = "runtime_enforcement_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    stream: Mapped[bool] = mapped_column(Boolean, default=False)
+    action: Mapped[str] = mapped_column(String(32), index=True)
+    body_sha256: Mapped[str] = mapped_column(String(64))
+    findings: Mapped[list[Any]] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

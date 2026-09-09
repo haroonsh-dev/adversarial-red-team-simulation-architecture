@@ -74,16 +74,21 @@ class JudgeAgent(BaseAgent):
     """
 
     def __init__(self, config: dict[str, Any]) -> None:
+        # Heuristic judges are an explicit deterministic/test path and must not
+        # require a configured cloud provider merely to construct the agent.
+        use_llm = config.get("use_llm", True)
         super().__init__(
             name="JudgeAgent",
-            provider=config.get("provider", "openai"),
+            provider=(config.get("provider", "openai") if use_llm else "deterministic"),
             model=config.get("model", "gpt-4o"),
             temperature=config.get("temperature", 0.1),
             system_prompt=JUDGE_SYSTEM_PROMPT,
             api_key=config.get("api_key"),
             base_url=config.get("base_url"),
+            tenant_id=config.get("tenant_id"),
+            provider_ref=config.get("provider_ref"),
         )
-        self.use_llm = config.get("use_llm", True)
+        self.use_llm = use_llm
 
     def receive_signed(self, envelope):
         """HMAC-verify a Target envelope before judging."""

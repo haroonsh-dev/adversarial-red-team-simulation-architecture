@@ -9,6 +9,7 @@ follows on the same request before the HTTP response returns.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from datetime import UTC, datetime
@@ -28,10 +29,12 @@ from src.services.alert_store import persist_alert, record_alert_from_evaluation
 from src.services.event_processor import EventProcessor
 from src.services.session_tracker import SessionTracker
 from src.services.telemetry_bus import telemetry_bus
+from src.services.approval_service import create_request
+from src.runtime.circuit_breaker import circuit_breaker, record_breaker_trip
 
 logger = logging.getLogger(__name__)
 
-_CONTAINED_STATUSES = frozenset({"BREACHED", "QUARANTINED", "CLOSED"})
+_CONTAINED_STATUSES = frozenset({"BREACHED", "QUARANTINED", "CLOSED", "PENDING_APPROVAL"})
 _ENFORCE_ACTIONS = frozenset({"KILL", "QUARANTINE"})
 # Chat / output checkpoints from Harness: keep scanning every message.
 # Hard-containing the session after the first BREACH returns 403 and breaks
@@ -76,7 +79,32 @@ def _is_monitor_only(event: ToolCallEvent) -> bool:
 
 def _scan_phase(event: ToolCallEvent) -> str:
     """Pre-exec = arguments only (tool has not returned). Post-exec = output scan."""
-    return "post_exec" if event.response else "pre_exec"
+    return "post_exec" if event.response is not None else "pre_exec"
+
+
+def _redact_post_exec_response(event: ToolCallEvent, sec_events: list[Any]) -> None:
+    """Remove SDK tool output after scanning, retaining safe forensic metadata."""
+    if not event.post_exec_redacted or event.response is None:
+        return
+
+    raw = str(event.response)
+    event.response_sha256 = hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+    event.response_findings = [
+        {
+            "detector": sec.detector,
+            "event_type": sec.event_type,
+            "severity": sec.severity,
+            "risk_score": sec.risk_score,
+            "description": sec.description,
+            "evidence": {
+                key: value
+                for key, value in (sec.evidence or {}).items()
+                if key in {"matched_pattern", "span", "match_length", "source", "fail_closed"}
+            },
+        }
+        for sec in sec_events
+    ]
+    event.response = None
 
 
 def _execution_allowed(action: str, *, monitor_only: bool) -> bool:
@@ -151,12 +179,15 @@ async def run_ingest_pipeline(
             existing = tracker.get_session(event.session_id) or memory_store.get_session(event.session_id)
             if existing and existing.status in _CONTAINED_STATUSES:
                 raise ContainedSessionError(str(event.session_id), existing.status)
+            if await circuit_breaker.is_open(db, tenant_id=tenant_id, session_id=event.session_id):
+                raise ContainedSessionError(str(event.session_id), "BREACHED")
 
     evaluations: list[dict[str, Any]] = []
     auto_enforced: str | None = None
     session_status: str | None = None
     redis_entries: list[dict[str, Any]] = []
     pending_alerts: list[Any] = []
+    approval_id: str | None = None
 
     # --- Hot path: detect + memory + WS publish (no await except session create) ---
     for event in events:
@@ -184,8 +215,15 @@ async def run_ingest_pipeline(
             event, fast=_is_monitor_only(event)
         )
         scan_phase = _scan_phase(event)
+        _redact_post_exec_response(event, sec_events)
 
-        mark_breached = verdict.verdict == "BREACHED" and not _is_monitor_only(event)
+        # With ASI08 enabled, a hard decision blocks this operation immediately
+        # but the session only becomes BREACHED once the breaker trips.
+        mark_breached = (
+            verdict.verdict == "BREACHED"
+            and not _is_monitor_only(event)
+            and not settings.ARTSA_CIRCUIT_BREAKER_ENABLED
+        )
         tracker.update_session(
             session_id=event.session_id,
             risk_score=risk_score.overall_score,
@@ -201,14 +239,37 @@ async def run_ingest_pipeline(
         action = verdict.recommended_action
         monitor_only = _is_monitor_only(event)
         execution_allowed = _execution_allowed(action, monitor_only=monitor_only)
-        if (
-            settings.ARTSA_AUTO_ENFORCE
+        retry_authorized = bool(event.approval_retry_token)
+        if action == "QUARANTINE" and not retry_authorized:
+            approval = await create_request(
+                db, tenant_id=tenant_id, session_id=event.session_id, tool_name=event.tool_name,
+                arguments=event.arguments, findings=sec_events,
+                requester={"agent_id": event.agent_id, "trace_id": event.trace_id},
+            )
+            approval_id = approval.id
+            tracker.apply_action(event.session_id, "PENDING_APPROVAL")
+            enforced = True
+            auto_enforced = "APPROVAL_REQUIRED"
+            session_status = "PENDING_APPROVAL"
+        elif (
+            (settings.ARTSA_AUTO_ENFORCE or event.post_exec_redacted)
             and action in _ENFORCE_ACTIONS
             and not monitor_only
         ):
-            tracker.apply_action(event.session_id, action)
             enforced = True
-            auto_enforced = action
+            if action == "KILL" and settings.ARTSA_CIRCUIT_BREAKER_ENABLED:
+                opened = await circuit_breaker.record_block(
+                    db, tenant_id=tenant_id, session_id=event.session_id
+                )
+                if opened:
+                    record_breaker_trip(event.session_id)
+                    tracker.apply_action(event.session_id, action)
+                    auto_enforced = action
+                else:
+                    auto_enforced = "BLOCKED_OPERATION"
+            else:
+                tracker.apply_action(event.session_id, action)
+                auto_enforced = action
 
         sess = tracker.get_session(event.session_id)
         session_status = sess.status if sess else session_status
@@ -260,8 +321,12 @@ async def run_ingest_pipeline(
             breached=mark_breached,
             commit=False,
         )
-        if enforced:
-            await session_repo.apply_action(event.session_id, action, commit=False)
+        if enforced and auto_enforced != "BLOCKED_OPERATION":
+            await session_repo.apply_action(
+                event.session_id,
+                "PENDING_APPROVAL" if auto_enforced == "APPROVAL_REQUIRED" else action,
+                commit=False,
+            )
         await eval_repo.upsert(str(event.id), event.session_id, evaluation, commit=False)
 
         try:
@@ -334,4 +399,5 @@ async def run_ingest_pipeline(
         "scan_phase": first_eval.get("scan_phase", "pre_exec"),
         "execution_allowed": first_eval.get("execution_allowed", True),
         "pre_exec_blocked": first_eval.get("pre_exec_blocked", False),
+        "approval_id": approval_id,
     }

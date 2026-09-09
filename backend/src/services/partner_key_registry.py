@@ -186,3 +186,12 @@ def resolve(raw_api_key: str | None) -> Role | None:
         return Role(str(meta["role"]))
     except ValueError:
         return Role.ANALYST
+
+
+def resolve_metadata(raw_api_key: str | None) -> dict[str, Any] | None:
+    """Return the non-secret tenant binding for a validated partner key."""
+    if resolve(raw_api_key) is None or not raw_api_key:
+        return None
+    with _lock:
+        meta = _HASH_INDEX.get(hash_api_key(raw_api_key))
+        return dict(meta) if meta else None

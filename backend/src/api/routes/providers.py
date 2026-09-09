@@ -23,10 +23,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.dependencies import get_provider_tenant
 from src.data.db import get_async_session
 from src.data.provider_store import delete_provider, get_provider, list_providers, upsert_provider
 from src.gateway.provider_catalog import PROVIDER_CATALOG
-from src.services.provider_registry import provider_registry
+from src.services.provider_resolver import ProviderConfigurationError, provider_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,6 @@ class ProviderPatch(BaseModel):
     enabled: bool | None = Field(default=None)
 
 
-async def _refresh_registry() -> None:
-    try:
-        await provider_registry.refresh()
-    except Exception as exc:  # pragma: no cover
-        logger.warning("Registry refresh failed: %s", exc)
-
-
 @router.get("/providers/catalog")
 async def providers_catalog() -> dict[str, Any]:
     """List every supported LLM API (all options), with key status."""
@@ -76,9 +70,11 @@ async def providers_catalog() -> dict[str, Any]:
 
 
 @router.get("/providers")
-async def providers_list(session: AsyncSession = Depends(get_async_session)) -> dict[str, Any]:
+async def providers_list(
+    session: AsyncSession = Depends(get_async_session), tenant_id: str = Depends(get_provider_tenant)
+) -> dict[str, Any]:
     """List user-registered providers. API keys are never returned (masked)."""
-    rows = await list_providers(session)
+    rows = await list_providers(session, tenant_id=tenant_id)
     return {"providers": rows, "count": len(rows)}
 
 
@@ -86,11 +82,13 @@ async def providers_list(session: AsyncSession = Depends(get_async_session)) -> 
 async def providers_upsert(
     payload: ProviderPayload,
     session: AsyncSession = Depends(get_async_session),
+    tenant_id: str = Depends(get_provider_tenant),
 ) -> dict[str, Any]:
     """Add a new provider (or update an existing one by name)."""
     try:
         row = await upsert_provider(
             session,
+            tenant_id=tenant_id,
             name=payload.name,
             api_key=payload.api_key,
             provider_type=payload.provider_type,
@@ -100,7 +98,6 @@ async def providers_upsert(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    await _refresh_registry()
     return {"status": "ok", "provider": row}
 
 
@@ -109,6 +106,7 @@ async def providers_patch(
     name: str,
     payload: ProviderPatch,
     session: AsyncSession = Depends(get_async_session),
+    tenant_id: str = Depends(get_provider_tenant),
 ) -> dict[str, Any]:
     """Partially update a registered provider (404 if it does not exist).
 
@@ -116,12 +114,13 @@ async def providers_patch(
     sent, so callers can e.g. point a provider at a new base URL without
     re-supplying (or overwriting) the stored API key.
     """
-    existing = await get_provider(session, name.strip().lower())
+    existing = await get_provider(session, name.strip().lower(), tenant_id=tenant_id)
     if existing is None:
         raise HTTPException(status_code=404, detail=f"provider '{name}' not found")
 
     row = await upsert_provider(
         session,
+        tenant_id=tenant_id,
         name=existing["name"],
         api_key=payload.api_key if payload.api_key is not None else existing.get("api_key") or "",
         provider_type=payload.provider_type or existing.get("provider_type") or "custom",
@@ -131,7 +130,6 @@ async def providers_patch(
         ),
         enabled=payload.enabled if payload.enabled is not None else existing.get("enabled", True),
     )
-    await _refresh_registry()
     return {"status": "ok", "provider": row}
 
 
@@ -139,12 +137,12 @@ async def providers_patch(
 async def providers_delete(
     name: str,
     session: AsyncSession = Depends(get_async_session),
+    tenant_id: str = Depends(get_provider_tenant),
 ) -> dict[str, Any]:
     """Remove a registered provider."""
-    removed = await delete_provider(session, name.strip().lower())
+    removed = await delete_provider(session, name.strip().lower(), tenant_id=tenant_id)
     if not removed:
         raise HTTPException(status_code=404, detail=f"provider '{name}' not found")
-    await _refresh_registry()
     return {"status": "ok", "deleted": name.strip().lower()}
 
 
@@ -153,23 +151,27 @@ async def providers_test(
     name: str,
     payload: dict[str, Any] = Body(default={}),
     session: AsyncSession = Depends(get_async_session),
+    tenant_id: str = Depends(get_provider_tenant),
 ) -> dict[str, Any]:
     """Send a tiny chat completion to verify the stored key / endpoint works."""
-    stored = await get_provider(session, name.strip().lower())
+    stored = await get_provider(session, name.strip().lower(), tenant_id=tenant_id)
     if stored is None:
         raise HTTPException(status_code=404, detail=f"provider '{name}' not found")
 
-    cred = provider_registry.get(stored["name"]) or provider_registry.get(name)
-    api_key = (cred.api_key if cred else None) or stored.get("api_key") or ""
-    base_url = (cred.base_url if cred else None) or stored.get("base_url")
+    try:
+        resolved = await provider_resolver.resolve_async(
+            session, tenant_id=tenant_id, provider=stored["name"], model=payload.get("model")
+        )
+    except ProviderConfigurationError as exc:
+        raise HTTPException(status_code=422, detail=exc.code) from exc
+    api_key = resolved.api_key or ""
+    base_url = resolved.base_url
     if not base_url:
         base_url = PROVIDER_CATALOG.get(stored["provider_type"], {}).get("base_url")
     if not base_url:
         raise HTTPException(status_code=422, detail="provider has no base_url (set one or use a known type)")
 
-    model = (payload.get("model") or "").strip() or stored.get("default_model") or (
-        PROVIDER_CATALOG.get(stored["provider_type"], {}).get("default_model") or "default"
-    )
+    model = resolved.model
     prompt = payload.get("prompt") or "Reply with the single word: ok"
 
     headers = {

@@ -212,8 +212,9 @@ await client.guardToolCall({ sessionId, agentId, toolName, arguments: args });
 ## 5c. Provider Management API — add ANY API key / provider / model
 
 Users can register their own LLM API keys at runtime (no env edits, no
-redeploys). Keys are encrypted at rest with the platform `SECRET_KEY` and
-never returned by the API (masked only).
+redeploys). Keys are encrypted at rest with the platform `SECRET_KEY`, scoped
+to the authenticated tenant, decrypted only while ARTSA creates the selected
+provider client, and never returned by the API (masked only).
 
 ```bash
 # 1. See every supported API (all options)
@@ -499,6 +500,35 @@ After an incident:
 
 ---
 
+## 16. MCP stdio containment wrapper
+
+For local MCP servers, point the client at ARTSA's process wrapper instead of
+the server directly. The wrapper owns the JSON-RPC stdin/stdout pipe, blocks
+unsafe `tools/call` requests before they reach the child, and withholds unsafe
+tool results before the client receives them.
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "artsa-mcp-stdio",
+      "args": ["--", "npx", "-y", "@modelcontextprotocol/server-filesystem", "/data"]
+    }
+  }
+}
+```
+
+`QUARANTINE` returns a digest-only `approval_required` JSON-RPC error. After
+an operator approves it through ARTSA, retry the exact `tools/call` with the
+one-time token in `params._meta.artsa.retry_token`. ARTSA strips that extension
+before forwarding the request to the real server, binds it to the wrapper
+session and canonical tool parameters, and scans the rerun result again.
+
+This is newline-delimited stdio only. Streamable HTTP/SSE MCP remains outside
+the live containment boundary.
+
+---
+
 ## Recommended stack by app type
 
 | Your stack | Primary path | Also use |
@@ -507,7 +537,8 @@ After an incident:
 | LangChain / LangGraph | `LangChainContainmentCallback` | Wargame in CI |
 | OpenAI tools / Assistants | `wrap_openai_tools` | Alerts webhook |
 | Node / TypeScript agents | `@artsa/sdk` (`sdk/typescript`) | Fail-closed by default |
-| MCP tools / bridges | `/mcp/proxy` before forward | Ingest for executed tools |
+| Local MCP stdio servers | `artsa-mcp-stdio -- <server>` | Approval queue for quarantined results |
+| MCP HTTP inspection | `/mcp/proxy` before forward | Detect-only; not an interception boundary |
 | Already on OTEL | `/otel/v1/traces` *(experimental, opt-in)* | Ingest for blocking |
 | Node / other | Raw HTTP ingest | BFF if browser-facing |
 | Pre-prod hardening | Campaigns + `artsa.test` | Attack library |

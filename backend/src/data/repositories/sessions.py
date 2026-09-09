@@ -8,7 +8,6 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.models.sessions import Session
 from src.data import memory_store
 from src.data.orm import SessionORM
@@ -20,7 +19,10 @@ class SessionRepository(BaseRepository[SessionORM]):
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, SessionORM)
-        self._use_memory = settings.is_testing
+        # Mock sessions used in unit tests have no SQL execute. A real
+        # AsyncSession must persist even when ENVIRONMENT=testing so
+        # proxy approval rows and session status stay durable together.
+        self._use_memory = not hasattr(session, "execute")
 
     def _to_domain(self, row: SessionORM) -> Session:
         import uuid as _uuid
@@ -120,6 +122,7 @@ class SessionRepository(BaseRepository[SessionORM]):
         status_map = {
             "KILL": "BREACHED",
             "QUARANTINE": "QUARANTINED",
+            "PENDING_APPROVAL": "PENDING_APPROVAL",
             "THROTTLE": None,
             "RELEASE": "ACTIVE",
             "CLOSE": "CLOSED",

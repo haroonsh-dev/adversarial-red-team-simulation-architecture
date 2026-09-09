@@ -64,7 +64,9 @@ def guarded_tool(
                 except (TypeError, ValueError):
                     arguments = {"args": list(args), **kwargs}
             client.guard_tool_call(sid, agent_id, name, arguments)
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+            client.guard_tool_result(sid, agent_id, name, arguments, result)
+            return result
 
         return wrapper
 

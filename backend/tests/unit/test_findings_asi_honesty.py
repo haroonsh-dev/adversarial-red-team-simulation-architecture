@@ -36,7 +36,7 @@ def test_telemetry_prompt_injection_maps_asi01():
     assert rows[0]["asi_code"] == "ASI01"
 
 
-def test_category_helper_does_not_map_unsupported_asi08():
+def test_category_helper_does_not_invent_asi08_without_breaker_evidence():
     assert _asi_for_category("ASI08") == (None, None)
     code, label = _asi_for_category("DPI")
     assert code == "ASI01"

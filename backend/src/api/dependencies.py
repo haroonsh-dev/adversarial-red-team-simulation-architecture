@@ -3,7 +3,7 @@
 import logging
 from collections.abc import AsyncGenerator
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -25,6 +25,9 @@ class MockAsyncSession:
         pass
 
     async def commit(self) -> None:
+        pass
+
+    async def flush(self) -> None:
         pass
 
     async def rollback(self) -> None:
@@ -63,6 +66,7 @@ def get_session_tracker() -> SessionTracker:
 
 async def get_current_tenant(
     x_tenant_id: str | None = Header(None, alias="X-Tenant-ID"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
     authorization: str | None = Header(None, alias="Authorization"),
     db: AsyncSession = Depends(get_async_session),
 ) -> str:
@@ -85,7 +89,49 @@ async def get_current_tenant(
                     return user.tenant_id
         except Exception:  # pragma: no cover - token/user lookup must never break routing
             logger.debug("Tenant resolution from session failed; falling back to header")
+    if x_api_key:
+        from src.services.partner_key_registry import resolve_metadata
+
+        meta = resolve_metadata(x_api_key)
+        if meta and meta.get("tenant_id"):
+            return str(meta["tenant_id"])
+    # Header-selected tenants are retained only for unauthenticated local
+    # development. Production request routing never lets callers select a
+    # credential/campaign tenant with a header.
+    if settings.ENVIRONMENT == "production" or settings.ARTSA_REQUIRE_AUTH:
+        return settings.ARTSA_TENANT_ID
     return x_tenant_id or settings.ARTSA_TENANT_ID or "default_org"
+
+
+async def get_provider_tenant(
+    authorization: str | None = Header(None, alias="Authorization"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    db: AsyncSession = Depends(get_async_session),
+) -> str:
+    """Credential-management tenant identity; never caller-selected."""
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            from src.core.password_auth import decode_session_token
+            from src.data.user_store import get_user_by_id
+
+            claims = decode_session_token(authorization[7:].strip())
+            if claims and claims.get("sub"):
+                user = await get_user_by_id(db, str(claims["sub"]))
+                if user and user.tenant_id:
+                    return user.tenant_id
+        except Exception:
+            logger.debug("Provider tenant resolution from session failed")
+        raise HTTPException(status_code=401, detail="invalid authenticated tenant")
+    if x_api_key:
+        from src.services.partner_key_registry import resolve_metadata
+
+        meta = resolve_metadata(x_api_key)
+        if meta and meta.get("tenant_id"):
+            return str(meta["tenant_id"])
+        raise HTTPException(status_code=401, detail="invalid authenticated tenant")
+    if settings.ARTSA_REQUIRE_AUTH or settings.ENVIRONMENT == "production":
+        raise HTTPException(status_code=401, detail="authenticated tenant required")
+    return settings.ARTSA_TENANT_ID
 
 
 async def rate_limit_dependency() -> None:

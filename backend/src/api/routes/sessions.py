@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_tenant, get_db, get_session_tracker
@@ -14,6 +15,7 @@ from src.api.ws_auth import require_ws_auth
 from src.core.models.events import ToolCallEvent
 from src.core.models.sessions import Session
 from src.data import memory_store
+from src.data.orm import SessionCircuitBreakerORM
 from src.data.repositories.evaluations import EvaluationRepository
 from src.data.repositories.events import EventRepository
 from src.data.repositories.sessions import SessionRepository
@@ -46,6 +48,19 @@ _ACTION_TARGET_STATUS = {
 
 def _lookup_session(session_id: uuid.UUID, tracker: SessionTracker) -> Session | None:
     return tracker.get_session(session_id) or memory_store.get_session(session_id)
+
+
+async def _with_breaker_state(sessions: list[Session], db: AsyncSession, tenant_id: str) -> list[Session]:
+    if not sessions or not hasattr(db, "execute"):
+        return sessions
+    rows = (await db.execute(
+        select(SessionCircuitBreakerORM.session_id).where(
+            SessionCircuitBreakerORM.tenant_id == tenant_id,
+            SessionCircuitBreakerORM.opened_at.is_not(None),
+        )
+    )).scalars().all()
+    opened = set(rows)
+    return [session.model_copy(update={"circuit_breaker_open": str(session.id) in opened}) for session in sessions]
 
 
 async def _require_tenant_session(
@@ -82,10 +97,11 @@ async def list_sessions(
     if status:
         active = [s for s in active if s.status == status]
     if active:
-        return active[offset : offset + limit]
+        return await _with_breaker_state(active[offset : offset + limit], db, effective_tenant)
 
     repo = SessionRepository(db)
-    return await repo.list_sessions(tenant_id=effective_tenant, status=status, limit=limit, offset=offset)
+    rows = await repo.list_sessions(tenant_id=effective_tenant, status=status, limit=limit, offset=offset)
+    return await _with_breaker_state(rows, db, effective_tenant)
 
 
 @router.get("/sessions/{session_id}", response_model=Session)
@@ -96,7 +112,8 @@ async def get_session_details(
     tenant_id: str = Depends(get_current_tenant),
 ):
     """Fetch details for a specific session by UUID."""
-    return await _require_tenant_session(session_id, tenant_id, tracker, db)
+    session = await _require_tenant_session(session_id, tenant_id, tracker, db)
+    return (await _with_breaker_state([session], db, tenant_id))[0]
 
 
 @router.get("/sessions/{session_id}/timeline", response_model=list[TimelineEntry])

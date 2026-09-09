@@ -30,6 +30,7 @@ from src.api.middleware.rbac_middleware import RBACMiddleware
 from src.api.middleware.response_envelope import ResponseEnvelopeMiddleware
 from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.routes.admin import router as admin_router
+from src.api.routes.approvals import router as approvals_router
 from src.api.routes.agent_runtime import router as agent_runtime_router
 from src.api.routes.agents import router as agents_router
 from src.api.routes.alerts import router as alerts_router
@@ -71,6 +72,7 @@ ROUTERS = [
     ingest_router,
     integrations_router,
     auth_router,
+    approvals_router,
     api_keys_router,
     sessions_router,
     agents_router,
@@ -124,10 +126,9 @@ async def lifespan(app: FastAPI):
 
         # Load user-registered LLM providers (keys decrypted into memory).
         try:
-            from src.services.provider_registry import provider_registry
-
-            await provider_registry.refresh()
-            logger.info("Provider registry loaded: %s", provider_registry.names())
+            # Provider credentials are deliberately resolved lazily and
+            # tenant-scoped.  Startup must never decrypt every tenant's keys.
+            logger.info("Tenant-scoped provider resolver initialized")
         except Exception as exc:
             logger.warning("Provider registry load skipped: %s", exc)
 

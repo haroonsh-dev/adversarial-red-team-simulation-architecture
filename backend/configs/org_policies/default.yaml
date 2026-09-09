@@ -27,7 +27,7 @@ rules:
     \ Blocks prompts matching the attack's trigger phrases."
   event_type: JAILBREAK
   name: "Block: Jailbreak \u2014 Evil Twin"
-  pattern: (?i)(system\ prompt)
+  pattern: (?i)\b(?:reveal|show|display|print|output|extract|leak)\s+(?:me\s+)?(?:your|the|hidden|full|complete|entire)?\s*(?:system\s+)?prompt\b
   risk_score: 82.0
   severity: CRITICAL
 - description: Automated verification promote

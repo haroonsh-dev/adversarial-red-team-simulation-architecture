@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
+from artsa.async_client import AsyncArtsaClient, ArtsaBlockedError as AsyncArtsaBlockedError
 from artsa.client import ArtsaBlockedError, ArtsaClient
+from artsa.middleware.decorator import guarded_tool
+from artsa.middleware.langgraph import wrap_langgraph_tool
+from artsa.middleware.openai_tools import guard_openai_tool_call
 
 
 def test_is_blocked_detects_kill() -> None:
@@ -51,6 +57,99 @@ def test_guard_raises_on_block(monkeypatch) -> None:
     except ArtsaBlockedError:
         raised = True
     assert raised
+
+
+def test_guard_tool_result_posts_transient_redacted_mode_and_withholds_unsafe_result(monkeypatch) -> None:
+    client = ArtsaClient()
+    secret = "sk-abcdefghijklmnopqrstuvwxyz0123"
+    seen: dict = {}
+
+    def fake_post(path, body):
+        seen["path"] = path
+        seen["body"] = body
+        return {
+            "verdict": {"recommended_action": "KILL", "reasoning": "secret output"},
+            "session_status": "BREACHED",
+        }
+
+    monkeypatch.setattr(client, "_post", fake_post)
+    try:
+        client.guard_tool_result("s", "a", "read_file", {"path": "/tmp/a"}, secret)
+        raised = False
+    except ArtsaBlockedError as exc:
+        raised = True
+        assert secret not in str(exc)
+    assert raised
+    assert seen["path"] == "/api/v1/ingest"
+    assert seen["body"]["post_exec_redacted"] is True
+    assert seen["body"]["response"] == {"result": secret}
+
+
+def test_guard_tool_result_allows_safe_result(monkeypatch) -> None:
+    client = ArtsaClient()
+    monkeypatch.setattr(
+        client,
+        "_post",
+        lambda *_args: {"verdict": {"recommended_action": "NONE"}, "session_status": "ACTIVE"},
+    )
+    assert client.guard_tool_result("s", "a", "search", {"q": "status"}, {"hits": []})
+
+
+def test_async_guard_tool_result_withholds_unsafe_result(monkeypatch) -> None:
+    client = AsyncArtsaClient()
+
+    async def fake_post(*_args):
+        return {"verdict": {"recommended_action": "QUARANTINE", "reasoning": "unsafe"}}
+
+    monkeypatch.setattr(client, "_post", fake_post)
+
+    async def check() -> None:
+        try:
+            await client.guard_tool_result("s", "a", "read_file", {}, "secret")
+            raised = False
+        except AsyncArtsaBlockedError:
+            raised = True
+        assert raised
+        await client.close()
+
+    asyncio.run(check())
+
+
+def test_execution_wrappers_post_gate_returns_before_returning_to_agent() -> None:
+    class FakeClient:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def guard_tool_call(self, *_args, **_kwargs):
+            self.calls.append("pre")
+
+        def guard_tool_result(self, *_args, **_kwargs):
+            self.calls.append("post")
+
+    client = FakeClient()
+
+    @guarded_tool(client, agent_id="agent")
+    def decorated(value: str) -> str:
+        return value
+
+    assert decorated("safe") == "safe"
+    assert client.calls == ["pre", "post"]
+
+    client.calls.clear()
+    wrapped = wrap_langgraph_tool(client, session_id="s", agent_id="agent")(lambda value: value)
+    assert wrapped("safe") == "safe"
+    assert client.calls == ["pre", "post"]
+
+    class Function:
+        name = "search"
+        arguments = '{"q":"safe"}'
+
+    class ToolCall:
+        function = Function()
+
+    client.calls.clear()
+    assert guard_openai_tool_call(client, session_id="s", agent_id="agent", tool_call=ToolCall(), execute=lambda _name, _args: "safe") == "safe"
+    assert client.calls == ["pre", "post"]
 
 
 def test_score_tool_call_normalizes_risk(monkeypatch) -> None:

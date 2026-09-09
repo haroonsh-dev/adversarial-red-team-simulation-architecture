@@ -26,7 +26,7 @@ const LIFECYCLE = [
     step: "02",
     icon: Shield,
     title: "Contain at runtime",
-    body: "Ingest scoring and layered verdicts today. Explicit KILL / QUARANTINE is the designed action enum — in-session blocking is not built yet.",
+    body: "Ingest scoring, LLM-proxy gating, MCP stdio interception, and operator approval for QUARANTINE. BLOCK stops the call in-session; deny or expire quarantines the session. MCP Streamable HTTP/SSE interception is not built.",
     href: demoHref("guard"),
     tag: "Runtime",
   },

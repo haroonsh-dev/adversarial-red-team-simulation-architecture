@@ -45,6 +45,7 @@ export interface Session {
   tool_call_count: number;
   max_risk_score: number;
   containment_breaches: number;
+  circuit_breaker_open?: boolean;
 }
 
 export interface Agent {

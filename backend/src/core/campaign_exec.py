@@ -33,17 +33,22 @@ class TargetExecSpec(BaseModel):
     provider: str
     model: str
     base_url: str | None = None
-    secret_ref: str
+    provider_ref: str | None = None
     system_prompt: str = ""
     guardrails: GuardrailConfig = Field(default_factory=GuardrailConfig)
     rag: RAGConfig = Field(default_factory=RAGConfig)
+
+    @property
+    def secret_ref(self) -> str:
+        """Deprecated non-secret compatibility hint; never serialized."""
+        return "test:deterministic" if self.provider in {"deterministic", "fake", "test"} else "settings:" + self.provider
 
 
 class JudgeExecSpec(BaseModel):
     provider: str = "openai"
     model: str = "gpt-4o"
     use_llm: bool = False
-    secret_ref: str | None = None
+    provider_ref: str | None = None
     temperature: float = 0.1
 
 
@@ -73,31 +78,28 @@ def assert_no_secret_fields(payload: Any) -> None:
 
 
 def secret_ref_for_provider(provider: str) -> str:
+    """Legacy helper retained for older integrations; never used for DB keys."""
     name = (provider or "").strip().lower()
     if name in {"deterministic", "fake", "test"}:
         return "test:deterministic"
-    from src.services.provider_registry import provider_registry
-
-    if provider_registry.get(name):
-        return f"provider:{name}"
     return f"settings:{name}"
 
 
 def context_from_campaign(config, app_config: dict[str, Any] | None = None) -> CampaignExecContext:
     target = config.target
     provider = (target.provider or "openai").lower()
-    secret_ref = getattr(target, "secret_ref", None) or secret_ref_for_provider(provider)
     judge_cfg = ((app_config or {}).get("artsa") or {}).get("judge") or {}
     judge_provider = str(judge_cfg.get("provider") or provider).lower()
     return CampaignExecContext(
         campaign_id=config.id,
+        tenant_id=target.tenant_id or settings.ARTSA_TENANT_ID,
         target=TargetExecSpec(
             target_id=getattr(target, "target_id", None),
             target_version=getattr(target, "target_version", None),
             provider=provider,
-            model=target.model,
+            model=target.model or "default",
             base_url=target.base_url,
-            secret_ref=secret_ref,
+            provider_ref=target.provider_ref,
             system_prompt=target.system_prompt or "",
             guardrails=target.guardrails,
             rag=target.rag,
@@ -106,7 +108,7 @@ def context_from_campaign(config, app_config: dict[str, Any] | None = None) -> C
             provider=judge_provider,
             model=str(judge_cfg.get("model") or target.model),
             use_llm=bool(judge_cfg.get("use_llm", False)),
-            secret_ref=secret_ref_for_provider(judge_provider),
+            provider_ref=target.provider_ref if judge_provider == provider else None,
             temperature=float(judge_cfg.get("temperature") or 0.1),
         ),
     )
@@ -141,10 +143,9 @@ def resolve_secret_ref(ref: str | None) -> str | None:
     if scheme == "settings":
         return settings.provider_key(name.lower())
     if scheme == "provider":
-        from src.services.provider_registry import provider_registry
-
-        cred = provider_registry.get(name)
-        return cred.api_key if cred else None
+        # Name-only provider references were global and could cross tenant
+        # boundaries.  Worker contexts now carry ``provider_ref`` plus tenant.
+        raise ValueError("provider secret_ref is no longer supported")
     if scheme == "env":
         if not _ENV_KEY_RE.match(name):
             raise ValueError("env secret_ref must be a *_API_KEY name")
@@ -166,19 +167,18 @@ def record_test_llm_call() -> None:
         handle.write("invoke\n")
 
 
-def target_config_from_spec(spec: TargetExecSpec) -> TargetConfig:
-    api_key = resolve_secret_ref(spec.secret_ref)
+def target_config_from_spec(spec: TargetExecSpec, *, tenant_id: str | None = None) -> TargetConfig:
     return TargetConfig(
         provider=spec.provider,
         model=spec.model,
         base_url=spec.base_url,
         system_prompt=spec.system_prompt,
-        api_key=api_key,
         guardrails=spec.guardrails,
         rag=spec.rag,
         target_id=spec.target_id,
         target_version=spec.target_version,
-        secret_ref=spec.secret_ref,
+        provider_ref=spec.provider_ref,
+        tenant_id=tenant_id,
     )
 
 
@@ -188,7 +188,7 @@ def build_target_agent(campaign_id: str):
     ctx = load_exec_context(campaign_id)
     if ctx is None:
         return None
-    return TargetAgent(target_config_from_spec(ctx.target))
+    return TargetAgent(target_config_from_spec(ctx.target, tenant_id=ctx.tenant_id))
 
 
 def build_judge_agent(campaign_id: str):
@@ -198,13 +198,13 @@ def build_judge_agent(campaign_id: str):
     if ctx is None:
         return None
     spec = ctx.judge
-    api_key = resolve_secret_ref(spec.secret_ref)
     return JudgeAgent(
         {
             "provider": spec.provider,
             "model": spec.model,
             "temperature": spec.temperature,
             "use_llm": spec.use_llm,
-            "api_key": api_key,
+            "tenant_id": ctx.tenant_id,
+            "provider_ref": spec.provider_ref,
         }
     )

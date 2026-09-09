@@ -7,7 +7,7 @@ import { easeOut, staggerContainer, fadeUp } from "@/lib/motionPresets";
 const FAQ = [
   {
     q: "What is AI agent containment?",
-    a: "AI agent containment is runtime enforcement over autonomous agents — their identities, privileges, tool calls, MCP interactions, and cross-agent handoffs. ARTSA's designed action enum is ALLOW, QUARANTINE, or KILL. In-session blocking and the ASI08 circuit breaker are not built yet; the live product is the six-agent red-team loop and the adaptive-vs-static detection curve.",
+    a: "AI agent containment is runtime enforcement over autonomous agents — their identities, privileges, tool calls, MCP interactions, and cross-agent handoffs. ARTSA's designed action enum is ALLOW, QUARANTINE, or KILL. The LLM proxy, ingest path, and MCP stdio wrapper block or withhold in-session; QUARANTINE waits for operator approval. The session-scoped ASI08 circuit breaker stops repeated hard containment decisions; MCP Streamable HTTP/SSE interception is not built. The live product also includes the six-agent red-team loop and the adaptive-vs-static detection curve.",
   },
   {
     q: "How is containment different from observability?",
@@ -27,7 +27,7 @@ const FAQ = [
   },
   {
     q: "Can ARTSA enforce policy, not just monitor?",
-    a: "Verdicts are designed as explicit actions — ALLOW, QUARANTINE, or KILL — never an auto-destructive side effect. Campaign findings already promote into versioned playbooks. Real-time tool-call interception is the next control, not a shipped runtime gate.",
+    a: "Verdicts are explicit actions — ALLOW, QUARANTINE, or KILL — never an auto-destructive side effect. Campaign findings already promote into versioned playbooks. The LLM proxy, ingest path, and MCP stdio wrapper intercept tool calls at runtime; QUARANTINE withholds the result for operator approval. MCP Streamable HTTP/SSE interception remains unbuilt.",
   },
   {
     q: "Do I need to sign up to try ARTSA?",

@@ -67,10 +67,15 @@ _Avoid_: monitor, blotter, live feed (in product copy)
 An OWASP Top 10 for Agentic Applications category (ASI01–ASI10) used to classify attacks and defenses.
 
 **ASI08**:
-Circuit breaker. Not built. Must remain a visible gap.
+Session circuit breaker. Three runtime `BLOCK` decisions in the configured
+rolling window open a durable, tenant-isolated breaker, breach the session, and
+deny all later guarded operations for that session. It is not provider-wide.
 
 **Runtime blocking**:
-In-session guardrail instrumentation and tool-call interception (ALLOW / QUARANTINE / KILL). Designed, not built.
+Non-streaming and streaming LLM proxy completions and `tool_calls` are gated (`ALLOW` / `QUARANTINE` / `BLOCK`) with digest-only forensic audit. Python SDK and LangChain/LangGraph execution wrappers also gate tool returns post-execution, retaining only a digest and redacted findings. SDK/ingest and the LLM proxy (OpenAI, Anthropic, and streaming) turn `QUARANTINE` into a tenant-scoped, digest-only approval request. The proxy persists `PENDING_APPROVAL` on `agent_sessions` and binds one session ID per request (echoed as `X-ARTSA-Session-ID` when the client omits it) so approve → retry is recoverable. `artsa-mcp-stdio` is the live newline-delimited stdio boundary: it blocks unsafe MCP calls before the child server and gates tool results before the MCP client. Streamable HTTP/SSE MCP remains unbuilt. The full backend pytest collection still requires `pymongo`; do not treat this capability as production-complete from a partial run.
+
+**Provider resolution**:
+Provider credentials are tenant-scoped encrypted records resolved lazily at the client-construction boundary. ARTSA never loads all provider keys at startup, and provider aliases are unique only within a tenant. Standalone SDK calls require `tenant_id` or `ARTSA_SDK_TENANT_ID`; environment credential fallback is disabled by default. Existing `default_org` provider rows are migration-only and cannot act as a production shared pool.
 
 ## Graph
 

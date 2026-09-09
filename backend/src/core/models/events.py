@@ -20,6 +20,12 @@ class ToolCallEvent(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     trace_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     response: dict[str, Any] | None = None
+    # SDK post-execution mode: response is scanned transiently, then cleared
+    # before event persistence. Only its digest and redacted findings remain.
+    post_exec_redacted: bool = False
+    response_sha256: str | None = None
+    response_findings: list[dict[str, Any]] = Field(default_factory=list)
+    approval_retry_token: str | None = None
     latency_ms: float | None = None
 
 

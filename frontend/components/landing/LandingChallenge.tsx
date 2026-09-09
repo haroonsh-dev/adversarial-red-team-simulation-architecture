@@ -23,7 +23,7 @@ const PAINS = [
 ] as const;
 
 const STATS = [
-  { value: "<50ms", label: "target ingest-to-verdict budget — runtime blocking not built" },
+  { value: "<50ms", label: "target ingest-to-verdict budget" },
   { value: "10×", label: "more blast radius when agents inherit human OAuth" },
   { value: "100%", label: "of screened tool calls mapped to the agent chain" },
 ] as const;

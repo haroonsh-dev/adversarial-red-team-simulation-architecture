@@ -1,5 +1,7 @@
 """Unit tests for 2026 Agentic AI Security Features: MCP, AILM, Stepwise Monitor, Red Queen, SDK."""
 
+import pytest
+
 from src.agents.action_monitor import StepwiseActionMonitor
 from src.attacks.mcp_attack import MCPServerSimulator, MCPToolPoisoningAttack
 from src.evolution.red_queen import RedQueenCoEvolutionEngine
@@ -84,13 +86,25 @@ def test_red_queen_co_evolution():
     assert red_queen.blue_state.generation == 2
 
 
+@pytest.mark.external
 def test_shift_left_sdk():
+    """Real provider smoke check; normal CI remains network-free."""
+    from src.core.config import settings
+    from src.services.provider_resolver import ProviderConfigurationError, provider_resolver
+
+    tenant_id = settings.ARTSA_SDK_TENANT_ID
+    if not tenant_id:
+        pytest.skip("external provider test requires ARTSA_SDK_TENANT_ID")
+    try:
+        provider_resolver.resolve_sync(tenant_id=tenant_id, provider="groq")
+    except ProviderConfigurationError:
+        pytest.skip("external provider test requires encrypted Groq credential for SDK tenant")
     result = sdk_test(
         target_provider="groq",
         target_model="openai/gpt-oss-120b",
         policy="quick_scan",
         rounds=2,
+        tenant_id=tenant_id,
     )
     assert result.total_rounds == 2
     assert isinstance(result.passed, bool)
-

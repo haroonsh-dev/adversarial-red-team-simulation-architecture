@@ -333,5 +333,37 @@ describe("Full Integration in CommandCenterFloor", () => {
     expect(screen.getByRole("dialog", { name: /Threat and Event Inspector/i })).toBeInTheDocument();
     expect(screen.getByText(/Target Arbitration Verdict/i)).toBeInTheDocument();
   });
+
+  it("isolates timeline scrolling to the horizontal container and avoids window/viewport scrolling", async () => {
+    const windowScrollSpy = vi.spyOn(window, "scrollTo");
+    const scrollIntoViewSpy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewSpy;
+
+    render(
+      <CommandCenterFloor
+        events={[]}
+        campaigns={[]}
+        apiOnline={true}
+        wsConnected={true}
+      />
+    );
+
+    // Initial state: Step 1
+    expect(screen.getByText("STEP 1 OF 9")).toBeInTheDocument();
+
+    // Advance round using ArrowRight hotkey
+    fireEvent.keyDown(window, { key: "ArrowRight", code: "ArrowRight" });
+
+    // Step 2 is now active
+    expect(screen.getByText("STEP 2 OF 9")).toBeInTheDocument();
+
+    // Verify window.scrollTo was NOT invoked as a side effect
+    expect(windowScrollSpy).not.toHaveBeenCalled();
+    // Verify scrollIntoView was NOT invoked
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+
+    windowScrollSpy.mockRestore();
+  });
 });
+
 
